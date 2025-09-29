@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 ### Added
+- **v3 Cryptographic Protocol (Double Ratchet):** Implemented a Double Ratchet algorithm (inspired by Signal) to provide forward and post-compromise security for messaging. This uses Google's Tink library for the underlying X25519 Diffie-Hellman key exchange. A new UI flow has been added to `ContactDetailActivity` to allow users to set up a secure channel by exchanging public keys.
+- **Database Encryption:** The entire application database is now encrypted at rest using SQLCipher. On first launch, the user is required to set a master password, which is then used to unlock the database on subsequent launches. This protects all stored keys and contact information from physical-access attacks.
 - Implemented a dark theme for the entire application.
 - The splash screen now has a dark grey background.
 

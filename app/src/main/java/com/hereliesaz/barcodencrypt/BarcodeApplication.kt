@@ -14,7 +14,7 @@ import com.hereliesaz.barcodencrypt.util.LogConfig
 class BarcodeApplication : Application() {
     private val TAG = "BarcodeApplication"
 
-    val database: AppDatabase by lazy { AppDatabase.getDatabase(this) }
+    lateinit var database: AppDatabase
 
     val authManager: AuthManager by lazy {
         if (LogConfig.AUTH_FLOW) Log.d(TAG, "AuthManager singleton instance created.")
@@ -25,6 +25,14 @@ class BarcodeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         if (LogConfig.APPLICATION_START) Log.d(TAG, "onCreate: Application starting.")
+
+        // Initialize Cryptography
+        try {
+            com.hereliesaz.barcodencrypt.crypto.EncryptionManager.init()
+            if (LogConfig.CRYPTO_INIT) Log.d(TAG, "Tink initialization successful.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Tink initialization failed", e)
+        }
 
         // Initialize Firebase
         FirebaseApp.initializeApp(this)

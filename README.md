@@ -52,9 +52,12 @@ To achieve its passive, on-screen functionality, BarCodEncrypt integrates deeply
 
 This architecture requires significant user permissions (`CAMERA`, `READ_CONTACTS`, `SYSTEM_ALERT_WINDOW`) to function.
 
+### Security
+To protect against physical-access attacks, the entire database is **encrypted at rest** using SQLCipher. On first launch, the user is required to create a master password. This password is used to derive an encryption key that locks the database. The app cannot be accessed, and no keys can be read, without first providing this master password.
+
 ### Cryptographic Model & Status
 The application's security model has evolved to provide stronger guarantees. The core concept is **feature-complete** based on the v2 cryptographic design.
 
 * **v1 (Legacy):** The initial proof-of-concept used standard AES-GCM for encryption.
 * **v2 (Current & Implemented):** To provide **forward secrecy**, the current design uses an HMAC-based Key Derivation Function (HKDF, RFC 5869). Instead of using a barcode's raw value directly, a unique encryption key is derived for every single message by combining the barcode's secret value (the IKM) with a per-message salt and an incrementing counter. This ensures that the compromise of a single message key does not reveal the master key or any other message keys.
-* **v3 (Planned but Blocked):** A future design aims to implement a **Double Ratchet** algorithm (similar to Signal) for **post-compromise security**. However, this is currently **blocked** as it requires `X25519` elliptic curve cryptography, which is not included in the standard Android JCA. The project's current development constraints prevent adding the necessary third-party cryptographic libraries (like BouncyCastle or Tink) needed for a secure implementation.
+* **v3 (Implemented):** To provide **post-compromise security**, the app now implements a **Double Ratchet** algorithm, inspired by the Signal protocol. This combines a Diffie-Hellman (DH) ratchet for asynchronous key agreement with a symmetric-key ratchet for per-message keys. This ensures that even if a key is compromised, the session can "heal" and become secure again after a few message exchanges. The implementation uses Google's Tink library for the underlying `X25519` elliptic curve cryptography.

@@ -39,13 +39,16 @@ class MessageDetectionService : AccessibilityService() {
     }
 
     private fun findAndHighlightMessage(rootNode: AccessibilityNodeInfo) {
-        val messages = MessageParser.findAllV4MessagesWithNodes(rootNode)
-        Log.d("MessageDetectionService", "Found ${messages.size} messages.")
-        if (messages.isNotEmpty()) {
+        val v3Messages = MessageParser.findAllV3MessagesWithNodes(rootNode)
+        val v4Messages = MessageParser.findAllV4MessagesWithNodes(rootNode)
+        val allMessages = v3Messages + v4Messages
+
+        Log.d("MessageDetectionService", "Found ${allMessages.size} messages.")
+        if (allMessages.isNotEmpty()) {
             // For now, just highlight the first message found.
-            val (message, node) = messages.first()
+            val (message, node) = allMessages.first()
             val rect = Rect()
-            node.getBoundsInScreen(rect) // Corrected method call
+            node.getBoundsInScreen(rect)
 
             // Stop any existing overlay before starting a new one
             stopService(Intent(this, OverlayService::class.java))
@@ -57,7 +60,7 @@ class MessageDetectionService : AccessibilityService() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startService(intent)
-            node.recycle() // Corrected method call
+            node.recycle()
         } else {
             // If no messages are found, ensure the overlay is removed.
             stopService(Intent(this, OverlayService::class.java))

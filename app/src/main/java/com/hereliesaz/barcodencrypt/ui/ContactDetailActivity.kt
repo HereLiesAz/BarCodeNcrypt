@@ -166,10 +166,14 @@ class ContactDetailActivity : ComponentActivity() {
                             viewModel = viewModel,
                             onAddAssociation = { showAssociationDialog = true },
                             refreshTrigger = refreshTrigger,
-                           // contactLookupKey removed as associations seem global
                             onDeleteAssociation = { packageName ->
                                 SettingsActivity.Companion.removeAssociatedApp(currentContext, packageName) // MODIFIED
                                 refreshTrigger = !refreshTrigger
+                            },
+                            onSetupSecureChannel = {
+                                val intent = Intent(this, KeyExchangeActivity::class.java)
+                                intent.putExtra("contact_lookup_key", contactLookupKey)
+                                startActivity(intent)
                             }
                         )
                     }
@@ -417,18 +421,30 @@ fun ContactDetailScreen(
     viewModel: ContactDetailViewModel,
     onAddAssociation: () -> Unit,
     refreshTrigger: Boolean,
-    // contactLookupKey: String, // Removed as associations seem global based on SettingsActivity.Companion methods
-    onDeleteAssociation: (String) -> Unit
+    onDeleteAssociation: (String) -> Unit,
+    onSetupSecureChannel: () -> Unit
 ) {
     val barcodes by viewModel.barcodes.observeAsState(emptyList())
-    var associations by remember { mutableStateOf<Set<String>>(emptySet()) } // MODIFIED to Set
+    var associations by remember { mutableStateOf<Set<String>>(emptySet()) }
     val context = LocalContext.current
 
-    LaunchedEffect(key1 = refreshTrigger, key2 = Unit) { // MODIFIED key2
-        associations = SettingsActivity.Companion.loadAssociatedApps(context) // MODIFIED
+    LaunchedEffect(key1 = refreshTrigger, key2 = Unit) {
+        associations = SettingsActivity.Companion.loadAssociatedApps(context)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("V3 Secure Messaging", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "Establish a secure channel for advanced, end-to-end encrypted messaging with post-compromise security.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onSetupSecureChannel) {
+            Text("Setup Secure Channel")
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+
         Text(
             text = "Add keys for this contact by scanning barcodes. Then, associate messaging apps globally. Barcodencrypt will use this contact\'s keys if a global association matches and you are interacting with this contact.",
             style = MaterialTheme.typography.bodyLarge,
@@ -449,14 +465,14 @@ fun ContactDetailScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Associated Apps (Global)", style = MaterialTheme.typography.headlineMedium) // Clarified title
+        Text("Associated Apps (Global)", style = MaterialTheme.typography.headlineMedium)
         Text("When you are in one of these apps, Barcodencrypt may use this contact\'s keys.", style = MaterialTheme.typography.bodySmall)
         Spacer(modifier = Modifier.height(8.dp))
         if (associations.isEmpty()) {
-            Text("No apps associated globally.") // MODIFIED text
+            Text("No apps associated globally.")
         } else {
             LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                items(associations.toList()) { packageName -> // Convert Set to List for items
+                items(associations.toList()) { packageName ->
                     ListItem(
                         headlineContent = { Text(packageName) },
                         trailingContent = {

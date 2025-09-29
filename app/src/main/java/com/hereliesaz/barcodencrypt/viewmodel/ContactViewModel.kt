@@ -41,7 +41,8 @@ class ContactViewModel(application: Application) : AndroidViewModel(application)
     val notificationPermissionStatus = MutableLiveData<Boolean>()
 
     init {
-        val contactDao = AppDatabase.getDatabase(application).contactDao()
+        val database = (application as com.hereliesaz.barcodencrypt.BarcodeApplication).database
+        val contactDao = database.contactDao()
         repository = ContactRepository(contactDao)
         allContacts = repository.allContacts
     }

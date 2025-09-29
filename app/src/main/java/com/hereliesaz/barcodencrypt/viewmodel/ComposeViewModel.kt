@@ -4,24 +4,30 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
-import com.hereliesaz.barcodencrypt.data.AppDatabase
-import com.hereliesaz.barcodencrypt.data.Barcode
-import com.hereliesaz.barcodencrypt.data.BarcodeRepository
+import com.hereliesaz.barcodencrypt.data.*
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 class ComposeViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: BarcodeRepository
+    private val barcodeRepository: BarcodeRepository
+    private val contactRepository: ContactRepository
 
     private val _barcodesForSelectedContact = MutableLiveData<List<Barcode>>()
     val barcodesForSelectedContact: LiveData<List<Barcode>> = _barcodesForSelectedContact
+
+    private var selectedContact: Contact? = null
 
     private var currentContactLookupKey: String? = null
     private var barcodesLiveData: LiveData<List<Barcode>>? = null
 
     init {
-        val barcodeDao = AppDatabase.getDatabase(application).barcodeDao()
-        repository = BarcodeRepository(barcodeDao)
+        val database = (application as BarcodeApplication).database
+        barcodeRepository = BarcodeRepository(database.barcodeDao())
+        contactRepository = ContactRepository(database.contactDao())
     }
 
     fun selectContact(contactLookupKey: String) {
@@ -31,7 +37,11 @@ class ComposeViewModel(application: Application) : AndroidViewModel(application)
         barcodesLiveData?.removeObserver(barcodeObserver)
 
         currentContactLookupKey = contactLookupKey
-        barcodesLiveData = repository.getBarcodesForContact(contactLookupKey)
+        viewModelScope.launch {
+            selectedContact = contactRepository.getContactByLookupKey(contactLookupKey).firstOrNull()
+        }
+
+        barcodesLiveData = barcodeRepository.getBarcodesForContact(contactLookupKey)
         barcodesLiveData?.observeForever(barcodeObserver)
     }
 
@@ -52,12 +62,28 @@ class ComposeViewModel(application: Application) : AndroidViewModel(application)
         password: String? = null,
         maxAttempts: Int = 0
     ): String? {
+        val contact = selectedContact
+        // If a secure v3 channel is established, use it.
+        if (contact?.dhRemotePublicKey != null) {
+            val (updatedContact, encryptedMessage) = EncryptionManager.encryptV3(
+                plaintext = plaintext,
+                contact = contact,
+                options = options,
+                keyName = barcode.name
+            )
+            // Save the updated contact state (new ratchet keys)
+            contactRepository.updateContact(updatedContact)
+            selectedContact = updatedContact // Update the local state
+            return encryptedMessage
+        }
+
+        // Fallback to v4 encryption
         // Get the freshest barcode state from DB to ensure counter is correct
-        val freshBarcode = repository.getBarcode(barcode.id) ?: return null
+        val freshBarcode = barcodeRepository.getBarcode(barcode.id) ?: return null
 
         // Increment the counter and update the database
         val updatedBarcode = freshBarcode.copy(counter = freshBarcode.counter + 1)
-        repository.updateBarcode(updatedBarcode)
+        barcodeRepository.updateBarcode(updatedBarcode)
 
         val ikm = EncryptionManager.getIkm(updatedBarcode, password)
 

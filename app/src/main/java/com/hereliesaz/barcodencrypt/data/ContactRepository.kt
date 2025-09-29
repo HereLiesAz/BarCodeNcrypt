@@ -48,4 +48,12 @@ class ContactRepository(private val contactDao: ContactDao) {
     suspend fun deleteContact(contact: Contact) {
         contactDao.deleteContact(contact)
     }
+
+    fun getContactByLookupKey(lookupKey: String): kotlinx.coroutines.flow.Flow<Contact?> {
+        return contactDao.getContactByLookupKey(lookupKey)
+    }
+
+    suspend fun updateContact(contact: Contact) {
+        contactDao.updateContact(contact)
+    }
 }

@@ -30,4 +30,10 @@ interface ContactDao {
 
     @Query("SELECT * FROM contacts")
     fun getAllContacts(): LiveData<List<Contact>>
+
+    @Query("SELECT * FROM contacts WHERE lookupKey = :lookupKey")
+    fun getContactByLookupKey(lookupKey: String): kotlinx.coroutines.flow.Flow<Contact?>
+
+    @Update
+    suspend fun updateContact(contact: Contact)
 }

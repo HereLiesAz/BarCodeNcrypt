@@ -3,16 +3,17 @@ package com.hereliesaz.barcodencrypt.ui
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import com.hereliesaz.barcodencrypt.util.Constants
 import com.hereliesaz.barcodencrypt.util.PasswordPasteManager
 
-class PasswordScannerTrampolineActivity : Activity() {
+class PasswordScannerTrampolineActivity : ComponentActivity() {
     private val scannerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
+            if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.getStringExtra(Constants.IntentKeys.SCAN_RESULT)?.let {
-                    PasswordPasteManager.pastePassword(it)
+                    PasswordPasteManager.paste(it)
                 }
             }
             finish()

@@ -11,9 +11,10 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.ui.platform.ComposeView
-import com.hereliesaz.barcodencrypt.ui.AutofillScannerTrampolineActivity
+import com.hereliesaz.barcodencrypt.ui.ScannerActivity
 import com.hereliesaz.barcodencrypt.ui.composable.SuggestionOverlay
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
+import com.hereliesaz.barcodencrypt.util.Constants
 
 class OverlayService : Service() {
 
@@ -62,11 +63,12 @@ class OverlayService : Service() {
                     SuggestionOverlay(
                         message = message,
                         onDecryptClick = {
-                            val trampolineIntent = Intent(context, AutofillScannerTrampolineActivity::class.java).apply {
+                            val intent = Intent(context, ScannerActivity::class.java).apply {
+                                action = Constants.ACTION_DECRYPT_MESSAGE
                                 putExtra(EXTRA_MESSAGE, message)
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-                            startActivity(trampolineIntent)
+                            startActivity(intent)
                             removeOverlay()
                         }
                     )
