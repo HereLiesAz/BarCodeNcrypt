@@ -7,19 +7,23 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.ui.platform.ComposeView
-import com.hereliesaz.barcodencrypt.ui.AutofillScannerTrampolineActivity
 import com.hereliesaz.barcodencrypt.ui.composable.SuggestionOverlay
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
+import com.hereliesaz.barcodencrypt.util.ScannerManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
-    private var messageBounds: Rect? = null
+    private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
     companion object {
         const val EXTRA_MESSAGE = "extra_message"
@@ -40,7 +44,7 @@ class OverlayService : Service() {
 
         if (intent != null) {
             val message = intent.getStringExtra(EXTRA_MESSAGE)
-            messageBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val messageBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra(EXTRA_BOUNDS, Rect::class.java)
             } else {
                 @Suppress("DEPRECATION")
@@ -48,7 +52,7 @@ class OverlayService : Service() {
             }
 
             if (message != null && messageBounds != null) {
-                showOverlay(message, messageBounds!!)
+                showOverlay(message, messageBounds)
             }
         }
 
@@ -62,11 +66,13 @@ class OverlayService : Service() {
                     SuggestionOverlay(
                         message = message,
                         onDecryptClick = {
-                            val trampolineIntent = Intent(context, AutofillScannerTrampolineActivity::class.java).apply {
-                                putExtra(EXTRA_MESSAGE, message)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            coroutineScope.launch {
+                                ScannerManager.requestScan { barcodeValue ->
+                                    if (barcodeValue != null) {
+                                        Log.d("OverlayService", "Barcode scanned: $barcodeValue")
+                                    }
+                                }
                             }
-                            startActivity(trampolineIntent)
                             removeOverlay()
                         }
                     )
@@ -117,4 +123,3 @@ class OverlayService : Service() {
         removeOverlay()
     }
 }
-

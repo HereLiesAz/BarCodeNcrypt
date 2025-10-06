@@ -8,6 +8,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * The Data Access Object for Barcodes. The Scribe's direct interface with its archives.
@@ -33,6 +35,18 @@ interface BarcodeDao {
 
     @Query("SELECT * FROM barcodes WHERE contactLookupKey = :contactLookupKey ORDER BY name ASC")
     fun getBarcodesForContactRaw(contactLookupKey: String): LiveData<List<Barcode>>
+
+    /**
+     * Retrieves a flow of all barcodes for a contact and ensures their values are decrypted.
+     */
+    fun getBarcodesForContactFlow(contactLookupKey: String): Flow<List<Barcode>> {
+        return getBarcodesForContactRawFlow(contactLookupKey).map { barcodes ->
+            barcodes.onEach { it.decryptValue() }
+        }
+    }
+
+    @Query("SELECT * FROM barcodes WHERE contactLookupKey = :contactLookupKey ORDER BY name ASC")
+    fun getBarcodesForContactRawFlow(contactLookupKey: String): Flow<List<Barcode>>
 
     @Delete
     suspend fun deleteBarcode(barcode: Barcode): Int

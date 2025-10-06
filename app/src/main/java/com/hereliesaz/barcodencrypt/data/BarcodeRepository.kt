@@ -3,6 +3,7 @@ package com.hereliesaz.barcodencrypt.data
 import androidx.lifecycle.LiveData
 import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
 import com.hereliesaz.barcodencrypt.crypto.KeyManager
+import kotlinx.coroutines.flow.Flow
 
 /**
  * A repository to mediate between the data sources (the Scribe's archive) and the rest of the app.
@@ -20,6 +21,16 @@ class BarcodeRepository(private val barcodeDao: BarcodeDao) {
      */
     fun getBarcodesForContact(contactLookupKey: String): LiveData<List<Barcode>> {
         return barcodeDao.getBarcodesForContact(contactLookupKey)
+    }
+
+    /**
+     * Retrieves a flow of all barcodes for a given contact.
+     *
+     * @param contactLookupKey The persistent key for the contact.
+     * @return A [Flow] of a list of barcodes.
+     */
+    fun getBarcodesForContactFlow(contactLookupKey: String): Flow<List<Barcode>> {
+        return barcodeDao.getBarcodesForContactFlow(contactLookupKey)
     }
 
     /**

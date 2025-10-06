@@ -1,26 +1,24 @@
 package com.hereliesaz.barcodencrypt.ui
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Bundle
 import android.provider.ContactsContract
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack // Changed
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,119 +26,53 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.hereliesaz.barcodencrypt.MainActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.hereliesaz.barcodencrypt.R
 import com.hereliesaz.barcodencrypt.data.Barcode
-import com.hereliesaz.barcodencrypt.ui.composable.AppScaffoldWithNavRail
-import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.viewmodel.ComposeViewModel
 import kotlinx.coroutines.launch
-
-class ComposeActivity : ComponentActivity() {
-
-    private val viewModel: ComposeViewModel by viewModels()
-    private var selectedContactInfo by mutableStateOf<Pair<String, String>?>(null)
-
-    private val contactsPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                contactPickerLauncher.launch(
-                    Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
-                )
-            } else {
-                Toast.makeText(this, getString(R.string.contacts_permission_to_select_recipient), Toast.LENGTH_LONG).show()
-            }
-        }
-
-    private val contactPickerLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                result.data?.data?.let { contactUri ->
-                    handleSelectedContact(contactUri)
-                }
-            }
-        }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            BarcodencryptTheme {
-                AppScaffoldWithNavRail(
-                    screenTitle = stringResource(id = R.string.compose_message),
-                    navigationIcon = {
-                        IconButton(onClick = { finish() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") // Changed
-                        }
-                    },
-                    onNavigateToManageKeys = {
-                        startActivity(Intent(this, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        })
-                    },
-                    onNavigateToTryMe = {
-                        com.hereliesaz.barcodencrypt.util.TutorialManager.startTutorial()
-                        startActivity(Intent(this, ScannerActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        })
-                    },
-                    onNavigateToCompose = { /* Already here */ },
-                    onNavigateToSettings = {
-                        startActivity(Intent(this, SettingsActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        })
-                    },
-                    screenContent = {
-                        ComposeScreen(
-                            viewModel = viewModel,
-                            selectedContactInfo = selectedContactInfo,
-                            onSelectRecipient = ::selectRecipient
-                        )
-                    }
-                )
-            }
-        }
-    }
-
-    private fun selectRecipient() {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            this, android.Manifest.permission.READ_CONTACTS
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (hasPermission) {
-            contactPickerLauncher.launch(
-                Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
-            )
-        } else {
-            contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
-        }
-    }
-
-    private fun handleSelectedContact(contactUri: Uri) {
-        val projection = arrayOf(
-            ContactsContract.Contacts.LOOKUP_KEY,
-            ContactsContract.Contacts.DISPLAY_NAME_PRIMARY
-        )
-        contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val lookupKey = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY))
-                val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY))
-                selectedContactInfo = displayName to lookupKey
-                viewModel.selectContact(lookupKey)
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComposeScreen(
-    viewModel: ComposeViewModel,
-    selectedContactInfo: Pair<String, String>?,
-    onSelectRecipient: () -> Unit
+    navController: NavController,
+    viewModel: ComposeViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val barcodes by viewModel.barcodesForSelectedContact.observeAsState(emptyList())
+    val barcodes by viewModel.barcodesForSelectedContact.collectAsState()
+    var selectedContactInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+
+    val contactPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == -1) { // RESULT_OK
+            result.data?.data?.let { contactUri ->
+                val projection = arrayOf(
+                    ContactsContract.Contacts.LOOKUP_KEY,
+                    ContactsContract.Contacts.DISPLAY_NAME_PRIMARY
+                )
+                context.contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val lookupKey = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY))
+                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY))
+                        selectedContactInfo = displayName to lookupKey
+                        viewModel.selectContact(lookupKey)
+                    }
+                }
+            }
+        }
+    }
+
+    val contactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            contactPickerLauncher.launch(
+                Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
+            )
+        } else {
+            Toast.makeText(context, context.getString(R.string.contacts_permission_to_select_recipient), Toast.LENGTH_LONG).show()
+        }
+    }
 
     var selectedBarcode by remember { mutableStateOf<Barcode?>(null) }
     var message by remember { mutableStateOf("") }
@@ -203,7 +135,22 @@ fun ComposeScreen(
         )
 
         Text("Select a contact from your address book.", style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = onSelectRecipient, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = {
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.READ_CONTACTS
+                ) == PackageManager.PERMISSION_GRANTED
+
+                if (hasPermission) {
+                    contactPickerLauncher.launch(
+                        Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
+                    )
+                } else {
+                    contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(selectRecipientAndKeyButtonText)
         }
         Spacer(Modifier.height(16.dp))
@@ -395,4 +342,3 @@ fun KeySelectionDialog(
         }
     )
 }
-
