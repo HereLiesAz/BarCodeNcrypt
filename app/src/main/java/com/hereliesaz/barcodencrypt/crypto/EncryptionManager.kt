@@ -54,7 +54,7 @@ object EncryptionManager {
         maxAttempts: Int = 0
     ): String? {
         return try {
-            val salt = Random.randBytes(16) // Standard salt size for HKDF
+            val salt = Random.randBytes(16 + com.google.crypto.tink.subtle.Random.randInt(17)) // Generate a salt of a random length between 16 and 32 bytes
 
             // Derive encryption key using HKDF
             val derivedKeyBytes = Hkdf.computeHkdf(
