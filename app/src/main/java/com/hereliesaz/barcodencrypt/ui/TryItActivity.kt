@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,7 +52,7 @@ class TryItActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        registerReceiver(receiver, IntentFilter("com.hereliesaz.barcodencrypt.DECRYPTION_SUCCESS"), RECEIVER_EXPORTED)
+        ContextCompat.registerReceiver(this, receiver, IntentFilter("com.hereliesaz.barcodencrypt.DECRYPTION_SUCCESS"), ContextCompat.RECEIVER_NOT_EXPORTED)
         setContent {
             BarcodencryptTheme {
                 TryItScreen(

@@ -1,7 +1,7 @@
 package com.hereliesaz.barcodencrypt.viewmodel
 
 import android.app.Application
-import android.util.Log // Added
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -17,65 +17,72 @@ import kotlinx.coroutines.withContext
 
 class TryItViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val barcodeDao: BarcodeDao = AppDatabase.getDatabase(application).barcodeDao()
-
-    private val _demoKeyResult = MutableLiveData<BarcodeResult>()
-    val demoKeyResult: LiveData<BarcodeResult> = _demoKeyResult
-
-    val MOCK_PASSWORD = "password123"
-    val DEMO_KEY_NAME = "DemoKey"
-
-    init {
-        checkDemoKey()
+    enum class Stage {
+        INITIAL,
+        MESSAGE_GENERATED,
+        DECRYPTED
     }
 
-    fun checkDemoKey() {
-        _demoKeyResult.value = BarcodeResult.Loading
-        viewModelScope.launch {
-            val key = try {
-                withContext(Dispatchers.IO) { // Explicitly use Dispatchers.IO for the DB call
-                    barcodeDao.getBarcodeByName(DEMO_KEY_NAME)
-                }
-            } catch (e: Exception) {
-                _demoKeyResult.postValue(BarcodeResult.Error("Error fetching key '$DEMO_KEY_NAME': ${e.message}"))
-                null // Ensure key is null if an exception occurred
-            }
+    private val barcodeDao: BarcodeDao = AppDatabase.getDatabase(application).barcodeDao()
 
-            if (key != null) {
-                if (key.keyType == KeyType.PASSWORD_PROTECTED_BARCODE || key.keyType == KeyType.PASSWORD_PROTECTED_BARCODE_SEQUENCE) {
-                    _demoKeyResult.postValue(BarcodeResult.Success(key))
+    private val _encryptedMessage = MutableLiveData<String>()
+    val encryptedMessage: LiveData<String> = _encryptedMessage
+
+    private val _decryptedMessage = MutableLiveData<String?>()
+    val decryptedMessage: LiveData<String?> = _decryptedMessage
+
+    private val _stage = MutableLiveData(Stage.INITIAL)
+    val stage: LiveData<Stage> = _stage
+
+    private val originalMessage = "This is a secret message!"
+    private val MOCK_PASSWORD = "password123"
+    private val DEMO_KEY_NAME = "DemoKey"
+
+    fun generateMessage() {
+        viewModelScope.launch {
+            val demoKey = withContext(Dispatchers.IO) {
+                barcodeDao.getBarcodeByName(DEMO_KEY_NAME)
+            }
+            if (demoKey != null) {
+                val encrypted = encryptMessageForDemo(originalMessage, demoKey)
+                if (encrypted != null) {
+                    _encryptedMessage.postValue(encrypted)
+                    _stage.postValue(Stage.MESSAGE_GENERATED)
                 } else {
-                    _demoKeyResult.postValue(BarcodeResult.Error("'$DEMO_KEY_NAME' found, but it's not password-protected. Please re-create it as a password-protected key with password '$MOCK_PASSWORD'."))
+                    // TODO: Handle encryption error
                 }
             } else {
-                // If not already set to an error by the catch block, set the "not found" error.
-                if (_demoKeyResult.value !is BarcodeResult.Error) {
-                    _demoKeyResult.postValue(BarcodeResult.Error("Key '$DEMO_KEY_NAME' not found. Please create it first."))
-                }
+                // TODO: Handle demo key not found
             }
         }
     }
 
-    suspend fun encryptMessageForDemo(plainText: String, barcode: Barcode): String? {
+    fun onMessageDecrypted(decryptedText: String) {
+        _decryptedMessage.value = decryptedText
+        _stage.value = Stage.DECRYPTED
+    }
+
+    fun reset() {
+        _stage.value = Stage.INITIAL
+        _encryptedMessage.value = ""
+        _decryptedMessage.value = null
+    }
+
+    private suspend fun encryptMessageForDemo(plainText: String, barcode: Barcode): String? {
         return withContext(Dispatchers.IO) {
             try {
-                // Step 1: Derive IKM using the barcode object and the known mock password
                 val ikm = EncryptionManager.getIkm(barcode = barcode, password = MOCK_PASSWORD)
-                // It's good practice to check if ikm is null or empty. getIkm should throw if password is required and null,
-                // but MOCK_PASSWORD is hardcoded. This check is more for cases where barcode.value might be empty.
-                if (ikm.isNullOrEmpty() && (barcode.keyType != KeyType.PASSWORD)) { // Password key type can have empty IKM if barcode value itself is empty string.
+                if (ikm.isNullOrEmpty() && (barcode.keyType != KeyType.PASSWORD)) {
                     Log.e("TryItViewModel", "IKM derivation failed or resulted in empty IKM for key: ${barcode.name} of type ${barcode.keyType}")
                     return@withContext null
                 }
-
-                // Step 2: Call encrypt with the derived IKM and other necessary parameters
                 EncryptionManager.encrypt(
                     plaintext = plainText,
                     ikm = ikm,
                     keyName = barcode.name,
-                    counter = 0L, // Using 0L for the demo simulation
+                    counter = 0L,
                     options = emptyList(),
-                    maxAttempts = 0 // No attempt limit for this simulation
+                    maxAttempts = 0
                 )
             } catch (e: Exception) {
                 Log.e("TryItViewModel", "Error in encryptMessageForDemo for key '${barcode.name}': ${e.message}", e)
@@ -83,10 +90,4 @@ class TryItViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-}
-
-sealed class BarcodeResult {
-    object Loading : BarcodeResult()
-    data class Success(val barcode: Barcode) : BarcodeResult()
-    data class Error(val message: String) : BarcodeResult()
 }
