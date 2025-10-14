@@ -2,6 +2,7 @@
 
 This documentation is a reference for the Barcodencrypt application.
 
+*   [File Descriptions](./FILE_DESCRIPTIONS.md)
 *   [Authentication](./auth.md)
 *   [Screens](./screens.md)
 *   [Workflow](./workflow.md)
