@@ -1,8 +1,10 @@
 package com.hereliesaz.barcodencrypt.util
 
+import android.content.Context
 import android.os.Bundle
-import android.view.accessibility.AccessibilityNodeInfo
 import android.util.Log
+import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 
 object PasswordPasteManager {
 
@@ -15,13 +17,13 @@ object PasswordPasteManager {
         Log.d(TAG, "Node prepared for paste: ${node.viewIdResourceName}")
     }
 
-    fun paste(text: String) {
+    fun pastePassword(text: String, context: Context) {
         targetNode?.let { node ->
             val args = Bundle()
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
             val success = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
             Log.d(TAG, "Paste action performed. Success: $success")
-            // MODIFIED: Removed node.recycle()
+            Toast.makeText(context, "Password pasted!", Toast.LENGTH_SHORT).show()
         }
         // Clean up after pasting
         targetNode = null
