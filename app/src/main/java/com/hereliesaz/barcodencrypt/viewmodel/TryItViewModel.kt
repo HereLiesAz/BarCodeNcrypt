@@ -25,8 +25,51 @@ class TryItViewModel(application: Application) : AndroidViewModel(application) {
     val MOCK_PASSWORD = "password123"
     val DEMO_KEY_NAME = "DemoKey"
 
+    enum class Stage {
+        INITIAL,
+        MESSAGE_GENERATED,
+        DECRYPTED
+    }
+
+    private val _encryptedMessage = MutableLiveData<String>()
+    val encryptedMessage: LiveData<String> = _encryptedMessage
+
+    private val _decryptedMessage = MutableLiveData<String?>()
+    val decryptedMessage: LiveData<String?> = _decryptedMessage
+
+    private val _stage = MutableLiveData(Stage.INITIAL)
+    val stage: LiveData<Stage> = _stage
+
     init {
         checkDemoKey()
+    }
+
+    fun generateMessage() {
+        viewModelScope.launch {
+            val key = (demoKeyResult.value as? BarcodeResult.Success)?.barcode
+            if (key == null) {
+                // Handle error
+                return@launch
+            }
+            val encrypted = encryptMessageForDemo("This is a test message.", key)
+            if (encrypted != null) {
+                _encryptedMessage.postValue(encrypted)
+                _stage.postValue(Stage.MESSAGE_GENERATED)
+            } else {
+                // Handle the error, e.g., post an error message to the UI
+            }
+        }
+    }
+
+    fun onMessageDecrypted(message: String) {
+        _decryptedMessage.postValue(message)
+        _stage.postValue(Stage.DECRYPTED)
+    }
+
+    fun reset() {
+        _stage.postValue(Stage.INITIAL)
+        _encryptedMessage.postValue("")
+        _decryptedMessage.postValue(null)
     }
 
     fun checkDemoKey() {
