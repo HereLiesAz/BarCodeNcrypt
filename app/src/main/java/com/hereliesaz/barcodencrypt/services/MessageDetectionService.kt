@@ -13,28 +13,28 @@ import com.hereliesaz.barcodencrypt.util.MessageParser
 class MessageDetectionService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
-    private var lastText: String? = null
-    private var lastEventTime: Long = 0
     private val DEBOUNCE_DELAY_MS = 250L // 250ms debounce delay
 
+    private val scanRunnable = Runnable {
+        val rootNode = rootInActiveWindow ?: return@Runnable
+        findAndHighlightMessage(rootNode)
+        rootNode.recycle()
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            val source = event.source ?: return
-            val currentTime = System.currentTimeMillis()
+        handler.removeCallbacksAndMessages(null)
 
-            handler.removeCallbacksAndMessages(null)
-            handler.postDelayed({
-                val rootNode = rootInActiveWindow ?: return@postDelayed
-                val currentText = getTextFromNode(rootNode)
-                if (currentText != lastText) {
-                    lastText = currentText
-                    findAndHighlightMessage(rootNode)
-                }
-                rootNode.recycle()
-            }, DEBOUNCE_DELAY_MS)
-
-            lastEventTime = currentTime
-            source.recycle()
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
+                val source = event.source ?: return
+                handler.postDelayed(scanRunnable, DEBOUNCE_DELAY_MS)
+                source.recycle()
+            }
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                // Stop any existing overlay when the window state changes
+                stopService(Intent(this, OverlayService::class.java))
+            }
         }
     }
 
@@ -62,18 +62,6 @@ class MessageDetectionService : AccessibilityService() {
             // If no messages are found, ensure the overlay is removed.
             stopService(Intent(this, OverlayService::class.java))
         }
-    }
-
-    private fun getTextFromNode(node: AccessibilityNodeInfo?): String {
-        if (node == null) return ""
-        val sb = StringBuilder()
-        if (node.text != null) {
-            sb.append(node.text).append("\n")
-        }
-        for (i in 0 until node.childCount) {
-            sb.append(getTextFromNode(node.getChild(i)))
-        }
-        return sb.toString()
     }
 
     override fun onInterrupt() {
