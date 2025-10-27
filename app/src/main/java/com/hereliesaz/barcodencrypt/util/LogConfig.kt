@@ -6,4 +6,5 @@ object LogConfig {
     const val LIFECYCLE_ONBOARDING_ACTIVITY = true
     const val LIFECYCLE_VIEWMODEL = true
     const val APPLICATION_START = true
+    const val CRYPTO_INIT = true
 }

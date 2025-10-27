@@ -17,14 +17,9 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,23 +31,20 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.hereliesaz.barcodencrypt.MainActivity
 import com.hereliesaz.barcodencrypt.R
+import com.hereliesaz.barcodencrypt.services.OverlayService
 import com.hereliesaz.barcodencrypt.ui.composable.AppScaffoldWithNavRail
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.Constants
 import com.hereliesaz.barcodencrypt.util.TutorialManager
-import com.hereliesaz.barcodencrypt.viewmodel.CameraViewModel
-import com.hereliesaz.barcodencrypt.viewmodel.CameraViewModelFactory
+import com.hereliesaz.barcodencrypt.viewmodel.*
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ScannerActivity : ComponentActivity() {
 
-    private val cameraViewModel: CameraViewModel by viewModels {
-        CameraViewModelFactory(application)
-    }
+    private val cameraViewModel: CameraViewModel by viewModels { CameraViewModelFactory(application) }
+    private val scannerViewModel: ScannerViewModel by viewModels { ScannerViewModelFactory(application) }
     private lateinit var previewView: PreviewView
-    private var showTutorialDialogState by mutableStateOf(false)
     private var barcodeFound = AtomicBoolean(false)
-
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -64,14 +56,9 @@ class ScannerActivity : ComponentActivity() {
             }
         }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         previewView = PreviewView(this)
-
-        if (TutorialManager.isTutorialRunning()) {
-            showTutorialDialogState = true
-        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             setupCamera()
@@ -81,17 +68,14 @@ class ScannerActivity : ComponentActivity() {
 
         setContent {
             BarcodencryptTheme {
-                if (showTutorialDialogState) {
-                    AlertDialog(
-                        onDismissRequest = { showTutorialDialogState = false },
-                        title = { Text("Tutorial: Step 1") },
-                        text = { Text("Scan any barcode. This will be your secret key.") },
-                        confirmButton = {
-                            TextButton(onClick = { showTutorialDialogState = false }) {
-                                Text(stringResource(android.R.string.ok))
-                            }
-                        }
-                    )
+                val decryptionResult by scannerViewModel.decryptionResult.observeAsState()
+
+                if (decryptionResult != null) {
+                    DecryptionResultDialog(result = decryptionResult!!) {
+                        // Reset result and finish activity
+                        scannerViewModel.resetDecryptionResult()
+                        finish()
+                    }
                 }
 
                 AppScaffoldWithNavRail(
@@ -102,7 +86,10 @@ class ScannerActivity : ComponentActivity() {
                         })
                         finish()
                     },
-                    onNavigateToTryMe = {},
+                    onNavigateToTryMe = {
+                        startActivity(Intent(this, TryItActivity::class.java))
+                        finish()
+                    },
                     onNavigateToCompose = {
                         startActivity(Intent(this, ComposeActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -162,13 +149,14 @@ class ScannerActivity : ComponentActivity() {
     private fun handleBarcode(barcodeValue: String) {
         if (isFinishing || isDestroyed) return
         runOnUiThread {
-            if (TutorialManager.isTutorialRunning()) {
-                TutorialManager.onBarcodeScanned(barcodeValue)
-                val intent = Intent(this, MockMessagesActivity::class.java).apply {
-                    putExtra(Constants.IntentKeys.TUTORIAL_BARCODE, barcodeValue)
+            if (intent.action == Constants.ACTION_DECRYPT_MESSAGE) {
+                val encryptedMessage = intent.getStringExtra(OverlayService.EXTRA_MESSAGE)
+                if (encryptedMessage != null) {
+                    scannerViewModel.decryptMessage(barcodeValue, encryptedMessage)
+                } else {
+                    Toast.makeText(this, "Error: No message to decrypt.", Toast.LENGTH_SHORT).show()
+                    finish()
                 }
-                startActivity(intent)
-                finish()
             } else {
                 val resultIntent = Intent().apply {
                     putExtra(Constants.IntentKeys.SCAN_RESULT, barcodeValue)
@@ -178,6 +166,30 @@ class ScannerActivity : ComponentActivity() {
             }
         }
     }
+}
+
+@Composable
+fun DecryptionResultDialog(result: DecryptionResult, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            when (result) {
+                is DecryptionResult.Success -> Text("Decryption Successful")
+                is DecryptionResult.Error -> Text("Decryption Failed")
+            }
+        },
+        text = {
+            when (result) {
+                is DecryptionResult.Success -> Text(result.plaintext)
+                is DecryptionResult.Error -> Text(result.message)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    )
 }
 
 @Composable

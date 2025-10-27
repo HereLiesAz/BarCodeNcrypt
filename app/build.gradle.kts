@@ -109,12 +109,19 @@ dependencies {
     // Tink for Crypto
     implementation(libs.tink.android)
 
+    // SQLCipher for Database Encryption
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite)
+
     // Credentials
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
 
     // AzNavRail
     implementation(libs.aznavrail)
+
+    // Security
+    implementation(libs.security.crypto)
 
 
     // Testing

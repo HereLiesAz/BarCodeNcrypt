@@ -17,11 +17,9 @@ class ContactDetailViewModel(application: Application, private val contactLookup
     // val associations: LiveData<List<AppContactAssociation>> // Removed
 
     init {
-        val database = AppDatabase.getDatabase(application)
+        val database = (application as com.hereliesaz.barcodencrypt.BarcodeApplication).database
         barcodeRepository = BarcodeRepository(database.barcodeDao())
-        // associationRepository = AppContactAssociationRepository(database.appContactAssociationDao()) // Removed
         barcodes = barcodeRepository.getBarcodesForContact(contactLookupKey)
-        // associations = associationRepository.getAssociationsForContact(contactLookupKey) // Removed
     }
 
     fun createAndInsertBarcode(rawValue: String, password: String? = null, keyType: KeyType = KeyType.SINGLE_BARCODE) = viewModelScope.launch(Dispatchers.IO) {
