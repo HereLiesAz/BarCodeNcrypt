@@ -42,7 +42,6 @@ android {
     }
     buildFeatures {
         compose = true
-        dataBinding = true
     }
     packaging {
         resources {
@@ -67,15 +66,16 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    implementation(libs.androidx.constraintlayout)
     implementation(libs.google.firebase.appcheck.debug)
 
 
     // Lifecycle, ViewModel, LiveData
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.common.java8)
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.androidx.savedstate.ktx)

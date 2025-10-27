@@ -1,30 +1,62 @@
 package com.hereliesaz.barcodencrypt.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import android.widget.Toast
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.credentials.CredentialManager
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.hereliesaz.barcodencrypt.viewmodel.OnboardingViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun OnboardingScreen(
-    onboardingViewModel: OnboardingViewModel
+    navController: NavController,
+    onboardingViewModel: OnboardingViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val credentialManager = remember { CredentialManager.create(context) }
     var showPasswordDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    val signInError by onboardingViewModel.signInError.collectAsState()
+    val noCredentialsFound by onboardingViewModel.noCredentialsFound.collectAsState()
+
+    LaunchedEffect(Unit) {
+        onboardingViewModel.signInRequest.collect { request ->
+            coroutineScope.launch {
+                try {
+                    val result = credentialManager.getCredential(context, request)
+                    onboardingViewModel.handleSignInResult(result)
+                } catch (e: NoCredentialException) {
+                    onboardingViewModel.onNoCredentialsFound()
+                    Toast.makeText(context, "No Google accounts found. Please set a password.", Toast.LENGTH_LONG).show()
+                } catch (e: GetCredentialException) {
+                    onboardingViewModel.onSignInError()
+                    Toast.makeText(context, "Sign-in failed. Please try again.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        onboardingViewModel.signInResult.collect { credential ->
+            if (credential != null) {
+                navController.navigate(Screen.Main.route) {
+                    popUpTo(Screen.Onboarding.route) { inclusive = true }
+                }
+            }
+        }
+    }
 
     if (showPasswordDialog) {
         PasswordDialog(
@@ -35,9 +67,6 @@ fun OnboardingScreen(
             }
         )
     }
-
-    val signInError by onboardingViewModel.signInError.collectAsState()
-    val noCredentialsFound by onboardingViewModel.noCredentialsFound.collectAsState()
 
     Column(
         modifier = Modifier

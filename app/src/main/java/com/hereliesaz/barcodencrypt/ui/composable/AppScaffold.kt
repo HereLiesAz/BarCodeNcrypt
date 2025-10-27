@@ -1,62 +1,44 @@
 package com.hereliesaz.barcodencrypt.ui.composable
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
+import com.hereliesaz.barcodencrypt.ui.Screen
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppScaffoldWithNavRail(
-    modifier: Modifier = Modifier,
-    onNavigateToManageKeys: () -> Unit,
-    onNavigateToCompose: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToTryMe: () -> Unit,
-    screenTitle: String,
-    navigationIcon: @Composable (() -> Unit)? = null,
-    floatingActionButton: @Composable () -> Unit = {},
-    screenContent: @Composable () -> Unit
+fun AppScaffold(
+    navController: NavController,
+    onManageContactKeys: () -> Unit,
+    content: @Composable () -> Unit
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            if (navigationIcon != null) {
-                TopAppBar(
-                    title = { Text(screenTitle) },
-                    navigationIcon = navigationIcon
-                )
-            } else {
-                TopAppBar(
-                    title = { Text(screenTitle) }
-                )
-            }
-        },
-        floatingActionButton = floatingActionButton
-    ) { scaffoldPadding ->
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(scaffoldPadding)
-        ) {
-            AppNavRail(
-                onManageContactKeys = onNavigateToManageKeys,
-                onComposeMessage = onNavigateToCompose,
-                onSettings = onNavigateToSettings,
-                onNavigateToTryMe = onNavigateToTryMe
+    Row(modifier = Modifier.fillMaxSize()) {
+        NavigationRail {
+            NavigationRailItem(
+                icon = { Icon(Icons.Default.VpnKey, contentDescription = "Manage Keys") },
+                label = { Text("Keys") },
+                selected = false, // This should be dynamic based on current route
+                onClick = onManageContactKeys
             )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-            ) {
-                screenContent()
-            }
+            NavigationRailItem(
+                icon = { Icon(Icons.Default.Create, contentDescription = "Compose") },
+                label = { Text("Compose") },
+                selected = false,
+                onClick = { navController.navigate(Screen.Compose.route) }
+            )
+            NavigationRailItem(
+                icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                label = { Text("Settings") },
+                selected = false,
+                onClick = { navController.navigate(Screen.Settings.route) }
+            )
         }
+        content()
     }
 }

@@ -2,19 +2,23 @@ package com.hereliesaz.barcodencrypt.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
-import com.hereliesaz.barcodencrypt.data.*
-import kotlinx.coroutines.flow.firstOrNull
+import com.hereliesaz.barcodencrypt.data.AppDatabase
+import com.hereliesaz.barcodencrypt.data.Barcode
+import com.hereliesaz.barcodencrypt.data.BarcodeRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class ComposeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val barcodeRepository: BarcodeRepository
     private val contactRepository: ContactRepository
+    private val repository: BarcodeRepository
+    private var contactBarcodeJob: Job? = null
 
     private val _barcodesForSelectedContact = MutableLiveData<List<Barcode>>()
     val barcodesForSelectedContact: LiveData<List<Barcode>> = _barcodesForSelectedContact
@@ -23,6 +27,8 @@ class ComposeViewModel(application: Application) : AndroidViewModel(application)
 
     private var currentContactLookupKey: String? = null
     private var barcodesLiveData: LiveData<List<Barcode>>? = null
+    private val _barcodesForSelectedContact = MutableStateFlow<List<Barcode>>(emptyList())
+    val barcodesForSelectedContact = _barcodesForSelectedContact.asStateFlow()
 
     init {
         val database = (application as BarcodeApplication).database
@@ -53,6 +59,12 @@ class ComposeViewModel(application: Application) : AndroidViewModel(application)
         super.onCleared()
         // Clean up the observer when the ViewModel is destroyed
         barcodesLiveData?.removeObserver(barcodeObserver)
+        contactBarcodeJob?.cancel()
+        contactBarcodeJob = viewModelScope.launch {
+            repository.getBarcodesForContactFlow(contactLookupKey).collect { barcodes ->
+                _barcodesForSelectedContact.value = barcodes
+            }
+        }
     }
 
     suspend fun encryptMessage(
