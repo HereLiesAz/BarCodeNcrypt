@@ -1,9 +1,12 @@
 package com.hereliesaz.barcodencrypt.ui
 
-import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.hereliesaz.barcodencrypt.services.OverlayService
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
+import com.hereliesaz.barcodencrypt.util.Constants
 import com.hereliesaz.barcodencrypt.viewmodel.TryItViewModel
 
 class TryItActivity : ComponentActivity() {
@@ -25,27 +30,47 @@ class TryItActivity : ComponentActivity() {
 
     private val scannerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                // In the tutorial, any successful scan is treated as scanning the "correct" key.
-                viewModel.performDecryption()
-            } else {
-                Toast.makeText(this, "Scan cancelled.", Toast.LENGTH_SHORT).show()
+            if (result.resultCode == RESULT_OK) {
+                val decryptedMessage = result.data?.getStringExtra("DECRYPTED_MESSAGE")
+                if (decryptedMessage != null) {
+                    viewModel.onMessageDecrypted(decryptedMessage)
+                } else {
+                    Toast.makeText(this, "Decryption failed or was cancelled.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.hereliesaz.barcodencrypt.DECRYPTION_SUCCESS") {
+                val decryptedText = intent.getStringExtra("decrypted_text")
+                viewModel.onMessageDecrypted(decryptedText ?: "Error: No decrypted text found.")
+            }
+        }
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ContextCompat.registerReceiver(this, receiver, IntentFilter("com.hereliesaz.barcodencrypt.DECRYPTION_SUCCESS"), ContextCompat.RECEIVER_NOT_EXPORTED)
         setContent {
             BarcodencryptTheme {
                 TryItScreen(
                     viewModel = viewModel,
                     onStartDecryption = {
                         val intent = Intent(this, ScannerActivity::class.java)
+                        intent.action = Constants.ACTION_DECRYPT_MESSAGE
+                        intent.putExtra(OverlayService.EXTRA_MESSAGE, viewModel.encryptedMessage.value)
                         scannerLauncher.launch(intent)
                     }
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(receiver)
     }
 }
 
