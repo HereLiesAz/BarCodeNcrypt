@@ -11,7 +11,7 @@ class MainViewModelFactory(private val application: Application) : ViewModelProv
             // Get the singleton instance from the Application class
             val authManager = (application as BarcodeApplication).authManager
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(authManager) as T
+            return MainViewModel(authManager, application) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
