@@ -10,8 +10,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hereliesaz.barcodencrypt.viewmodel.MainViewModel
+import com.hereliesaz.barcodencrypt.viewmodel.TryItState
 import com.hereliesaz.barcodencrypt.ui.theme.DisabledRed
 import com.hereliesaz.barcodencrypt.ui.theme.EnabledGreen
 
@@ -27,9 +29,22 @@ fun MainScreen(
     val notificationPermissionGranted by viewModel.notificationPermissionStatus.collectAsState()
     val contactsPermissionGranted by viewModel.contactsPermissionStatus.collectAsState()
     val overlayPermissionGranted by viewModel.overlayPermissionStatus.collectAsState()
+    val tryItState by viewModel.tryItState.collectAsState()
     var showDialog by remember { mutableStateOf(!serviceEnabled) }
 
-    if (showDialog && !serviceEnabled) {
+    if (tryItState !is TryItState.Idle) {
+        TryItCard(
+            state = tryItState,
+            onAction = { action ->
+                when (action) {
+                    is TryItAction.GenerateMessage -> viewModel.generateTryItMessage()
+                    is TryItAction.DecryptMessage -> viewModel.decryptTryItMessage(action.message, action.password)
+                    is TryItAction.Reset -> viewModel.resetTryItMode()
+                }
+            },
+            viewModel = viewModel
+        )
+    } else if (showDialog && !serviceEnabled) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Enable Service") },
@@ -100,6 +115,13 @@ fun MainScreen(
         Text("Manage the keys for your contacts.", style = MaterialTheme.typography.bodySmall)
         OutlinedButton(onClick = onManageContactKeys) {
             Text("Manage Contact Keys")
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Text("Try out the decryption process in a safe environment.", style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = { viewModel.startTryItMode() }) {
+            Text("Try It Out")
         }
     }
 }
@@ -189,5 +211,86 @@ private fun PermissionRequestRow(title: String, description: String, onRequest: 
             Text(description, style = MaterialTheme.typography.bodySmall)
         }
         TextButton(onClick = onRequest) { Text("Grant") }
+    }
+}
+
+sealed class TryItAction {
+    object GenerateMessage : TryItAction()
+    data class DecryptMessage(val message: String, val password: String) : TryItAction()
+    object Reset : TryItAction()
+}
+
+@Composable
+fun TryItCard(state: TryItState, onAction: (TryItAction) -> Unit, viewModel: MainViewModel) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            when (state) {
+                is TryItState.Idle -> {
+                    // This state is handled by the visibility of the card
+                }
+                is TryItState.MessageGenerated -> {
+                    Text("Here is your encrypted message:", textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = state.encryptedMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (state.encryptedMessage == "Tap 'Generate' to create a test message.") {
+                        Button(onClick = { onAction(TryItAction.GenerateMessage) }) {
+                            Text("Generate")
+                        }
+                    } else {
+                        Button(onClick = { viewModel.decryptTryItMessage(state.encryptedMessage) }) {
+                            Text("Decrypt")
+                        }
+                    }
+                }
+                is TryItState.AwaitingPassword -> {
+                    var password by remember { mutableStateOf("") }
+                    Text("Please enter your password to decrypt the message.")
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") }
+                    )
+                    Button(onClick = { onAction(TryItAction.DecryptMessage(state.encryptedMessage, password)) }) {
+                        Text("Decrypt")
+                    }
+                }
+                is TryItState.Decrypted -> {
+                    Text("Success! The message has been decrypted:", textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = state.decryptedMessage,
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(onClick = { onAction(TryItAction.Reset) }) {
+                        Text("Try Again")
+                    }
+                }
+                is TryItState.Error -> {
+                    Text(state.message, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(onClick = { onAction(TryItAction.Reset) }) {
+                        Text("Try Again")
+                    }
+                }
+            }
+        }
     }
 }
