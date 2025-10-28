@@ -100,7 +100,7 @@ class AuthManager(
         if (LogConfig.AUTH_FLOW) Log.d(TAG, "getGoogleSignInRequest: Building Google Sign-In request.")
         val nonce = generateNonce()
         val googleIdOption: GetGoogleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(true)
+            .setFilterByAuthorizedAccounts(false)
             .setServerClientId(webClientId)
             .setNonce(nonce)
             .build()

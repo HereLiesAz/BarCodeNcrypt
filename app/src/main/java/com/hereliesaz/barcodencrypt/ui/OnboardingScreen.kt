@@ -1,5 +1,6 @@
 package com.hereliesaz.barcodencrypt.ui
 
+import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
@@ -15,21 +16,26 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.viewmodel.OnboardingViewModel
+import com.hereliesaz.barcodencrypt.viewmodel.OnboardingViewModelFactory
 import kotlinx.coroutines.launch
 
 @Composable
 fun OnboardingScreen(
-    navController: NavController,
-    onboardingViewModel: OnboardingViewModel = viewModel()
+    navController: NavController
 ) {
     val context = LocalContext.current
+    val onboardingViewModel: OnboardingViewModel = viewModel(
+        factory = OnboardingViewModelFactory(context.applicationContext as Application)
+    )
+
     val credentialManager = remember { CredentialManager.create(context) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    val signInError by onboardingViewModel.signInError.collectAsState()
-    val noCredentialsFound by onboardingViewModel.noCredentialsFound.collectAsState()
+    val signInError by onboardingViewModel.signInError.collectAsState(initial = false)
+    val noCredentialsFound by onboardingViewModel.noCredentialsFound.collectAsState(initial = false)
 
     LaunchedEffect(Unit) {
         onboardingViewModel.signInRequest.collect { request ->
@@ -49,8 +55,8 @@ fun OnboardingScreen(
     }
 
     LaunchedEffect(Unit) {
-        onboardingViewModel.signInResult.collect { credential ->
-            if (credential != null) {
+        onboardingViewModel.signInResult.collect { signedIn ->
+            if (signedIn) {
                 navController.navigate(Screen.Main.route) {
                     popUpTo(Screen.Onboarding.route) { inclusive = true }
                 }

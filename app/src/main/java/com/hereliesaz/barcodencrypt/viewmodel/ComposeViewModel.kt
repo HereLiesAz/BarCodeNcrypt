@@ -3,32 +3,28 @@ package com.hereliesaz.barcodencrypt.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
-import com.hereliesaz.barcodencrypt.data.AppDatabase
 import com.hereliesaz.barcodencrypt.data.Barcode
 import com.hereliesaz.barcodencrypt.data.BarcodeRepository
+import com.hereliesaz.barcodencrypt.data.Contact
+import com.hereliesaz.barcodencrypt.data.ContactRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 class ComposeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val barcodeRepository: BarcodeRepository
     private val contactRepository: ContactRepository
-    private val repository: BarcodeRepository
     private var contactBarcodeJob: Job? = null
 
-    private val _barcodesForSelectedContact = MutableLiveData<List<Barcode>>()
-    val barcodesForSelectedContact: LiveData<List<Barcode>> = _barcodesForSelectedContact
-
-    private var selectedContact: Contact? = null
-
-    private var currentContactLookupKey: String? = null
-    private var barcodesLiveData: LiveData<List<Barcode>>? = null
     private val _barcodesForSelectedContact = MutableStateFlow<List<Barcode>>(emptyList())
     val barcodesForSelectedContact = _barcodesForSelectedContact.asStateFlow()
+
+    private var selectedContact: Contact? = null
 
     init {
         val database = (application as BarcodeApplication).database
@@ -37,34 +33,18 @@ class ComposeViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectContact(contactLookupKey: String) {
-        if (contactLookupKey == currentContactLookupKey) return
-
-        // Remove the observer from the old LiveData object
-        barcodesLiveData?.removeObserver(barcodeObserver)
-
-        currentContactLookupKey = contactLookupKey
-        viewModelScope.launch {
+        contactBarcodeJob?.cancel()
+        contactBarcodeJob = viewModelScope.launch {
             selectedContact = contactRepository.getContactByLookupKey(contactLookupKey).firstOrNull()
+            barcodeRepository.getBarcodesForContactFlow(contactLookupKey).collect { barcodes ->
+                _barcodesForSelectedContact.value = barcodes
+            }
         }
-
-        barcodesLiveData = barcodeRepository.getBarcodesForContact(contactLookupKey)
-        barcodesLiveData?.observeForever(barcodeObserver)
-    }
-
-    private val barcodeObserver: (List<Barcode>) -> Unit = { barcodes ->
-        _barcodesForSelectedContact.postValue(barcodes)
     }
 
     override fun onCleared() {
         super.onCleared()
-        // Clean up the observer when the ViewModel is destroyed
-        barcodesLiveData?.removeObserver(barcodeObserver)
         contactBarcodeJob?.cancel()
-        contactBarcodeJob = viewModelScope.launch {
-            repository.getBarcodesForContactFlow(contactLookupKey).collect { barcodes ->
-                _barcodesForSelectedContact.value = barcodes
-            }
-        }
     }
 
     suspend fun encryptMessage(

@@ -29,13 +29,10 @@ import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
-import com.hereliesaz.barcodencrypt.MainActivity
 import com.hereliesaz.barcodencrypt.R
 import com.hereliesaz.barcodencrypt.services.OverlayService
-import com.hereliesaz.barcodencrypt.ui.composable.AppScaffoldWithNavRail
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.Constants
-import com.hereliesaz.barcodencrypt.util.TutorialManager
 import com.hereliesaz.barcodencrypt.viewmodel.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -56,6 +53,7 @@ class ScannerActivity : ComponentActivity() {
             }
         }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         previewView = PreviewView(this)
@@ -78,34 +76,17 @@ class ScannerActivity : ComponentActivity() {
                     }
                 }
 
-                AppScaffoldWithNavRail(
-                    screenTitle = getString(R.string.scan_key),
-                    onNavigateToManageKeys = {
-                        startActivity(Intent(this, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        })
-                        finish()
-                    },
-                    onNavigateToTryMe = {
-                        startActivity(Intent(this, TryItActivity::class.java))
-                        finish()
-                    },
-                    onNavigateToCompose = {
-                        startActivity(Intent(this, ComposeActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        })
-                        finish()
-                    },
-                    onNavigateToSettings = {
-                        startActivity(Intent(this, SettingsActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        })
-                        finish()
-                    },
-                    screenContent = {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text(stringResource(id = R.string.scan_key)) }
+                        )
+                    }
+                ) { paddingValues ->
+                    Box(modifier = Modifier.padding(paddingValues)) {
                         ScannerScreen(previewView)
                     }
-                )
+                }
             }
         }
     }
