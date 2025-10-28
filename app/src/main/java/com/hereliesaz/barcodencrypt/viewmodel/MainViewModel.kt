@@ -43,9 +43,6 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
     private val _tryItState = MutableStateFlow<TryItState>(TryItState.Idle)
     val tryItState = _tryItState.asStateFlow()
 
-    private val MOCK_PASSWORD = "password123"
-    private val barcodeDao: BarcodeDao = AppDatabase.getDatabase(getApplication(), MOCK_PASSWORD).barcodeDao()
-
     init {
         if (LogConfig.LIFECYCLE_VIEWMODEL) Log.d(TAG, "init: MainViewModel created.")
         viewModelScope.launch {
@@ -89,29 +86,29 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
     }
 
     fun startTryItMode() {
-        _tryItState.value = TryItState.MessageGenerated("Tap 'Generate' to create a test message.")
+        _tryItState.value = TryItState.AwaitingPassword
     }
 
-    fun generateTryItMessage() {
+    fun generateTryItMessage(password: String) {
         viewModelScope.launch {
-            val demoKey = withContext(Dispatchers.IO) {
-                barcodeDao.getBarcodeByName("DemoKey")
-            }
-            if (demoKey != null) {
-                val encrypted = encryptMessageForDemo("This is a secret message!", demoKey)
-                if (encrypted != null) {
-                    _tryItState.value = TryItState.MessageGenerated(encrypted)
-                } else {
-                    _tryItState.value = TryItState.Error("Encryption failed.")
-                }
+            val encrypted = EncryptionManager.encrypt(
+                plaintext = "This is a secret message!",
+                ikm = password,
+                keyName = "DemoKey",
+                counter = 0L,
+                options = emptyList(),
+                maxAttempts = 0
+            )
+            if (encrypted != null) {
+                _tryItState.value = TryItState.MessageGenerated(encrypted)
             } else {
-                _tryItState.value = TryItState.Error("Demo key not found.")
+                _tryItState.value = TryItState.Error("Encryption failed.")
             }
         }
     }
 
-    fun decryptTryItMessage(message: String) {
-        _tryItState.value = TryItState.AwaitingPassword(message)
+    fun awaitDecryptionPassword(message: String) {
+        _tryItState.value = TryItState.AwaitingDecryptionPassword(message)
     }
 
     fun decryptTryItMessage(message: String, password: String) {
@@ -129,29 +126,6 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
         _tryItState.value = TryItState.Idle
     }
 
-    private suspend fun encryptMessageForDemo(plainText: String, barcode: Barcode): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val ikm = EncryptionManager.getIkm(barcode = barcode, password = MOCK_PASSWORD)
-                if (ikm.isNullOrEmpty() && (barcode.keyType != KeyType.PASSWORD)) {
-                    Log.e("TryItViewModel", "IKM derivation failed or resulted in empty IKM for key: ${barcode.name} of type ${barcode.keyType}")
-                    return@withContext null
-                }
-                EncryptionManager.encrypt(
-                    plaintext = plainText,
-                    ikm = ikm,
-                    keyName = barcode.name,
-                    counter = 0L,
-                    options = emptyList(),
-                    maxAttempts = 0
-                )
-            } catch (e: Exception) {
-                Log.e("TryItViewModel", "Error in encryptMessageForDemo for key '${barcode.name}': ${e.message}", e)
-                null
-            }
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         if (LogConfig.LIFECYCLE_VIEWMODEL) Log.d(TAG, "onCleared: MainViewModel destroyed.")
@@ -160,8 +134,9 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
 
 sealed class TryItState {
     object Idle : TryItState()
+    object AwaitingPassword : TryItState()
     data class MessageGenerated(val encryptedMessage: String) : TryItState()
-    data class AwaitingPassword(val encryptedMessage: String) : TryItState()
+    data class AwaitingDecryptionPassword(val encryptedMessage: String) : TryItState()
     data class Decrypted(val decryptedMessage: String) : TryItState()
     data class Error(val message: String) : TryItState()
 }

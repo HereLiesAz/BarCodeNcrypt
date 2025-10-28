@@ -37,12 +37,17 @@ fun MainScreen(
             state = tryItState,
             onAction = { action ->
                 when (action) {
-                    is TryItAction.GenerateMessage -> viewModel.generateTryItMessage()
-                    is TryItAction.DecryptMessage -> viewModel.decryptTryItMessage(action.message, action.password)
+                    is TryItAction.GenerateMessage -> viewModel.generateTryItMessage(action.password)
+                    is TryItAction.DecryptMessage -> {
+                        if (action.password.isNotEmpty()) {
+                            viewModel.decryptTryItMessage(action.message, action.password)
+                        } else {
+                            viewModel.awaitDecryptionPassword(action.message)
+                        }
+                    }
                     is TryItAction.Reset -> viewModel.resetTryItMode()
                 }
-            },
-            viewModel = viewModel
+            }
         )
     } else if (showDialog && !serviceEnabled) {
         AlertDialog(
@@ -215,13 +220,13 @@ private fun PermissionRequestRow(title: String, description: String, onRequest: 
 }
 
 sealed class TryItAction {
-    object GenerateMessage : TryItAction()
+    data class GenerateMessage(val password: String) : TryItAction()
     data class DecryptMessage(val message: String, val password: String) : TryItAction()
     object Reset : TryItAction()
 }
 
 @Composable
-fun TryItCard(state: TryItState, onAction: (TryItAction) -> Unit, viewModel: MainViewModel) {
+fun TryItCard(state: TryItState, onAction: (TryItAction) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -237,6 +242,18 @@ fun TryItCard(state: TryItState, onAction: (TryItAction) -> Unit, viewModel: Mai
                 is TryItState.Idle -> {
                     // This state is handled by the visibility of the card
                 }
+                is TryItState.AwaitingPassword -> {
+                    var password by remember { mutableStateOf("") }
+                    Text("Please enter your password to generate a test message.")
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") }
+                    )
+                    Button(onClick = { onAction(TryItAction.GenerateMessage(password)) }) {
+                        Text("Generate")
+                    }
+                }
                 is TryItState.MessageGenerated -> {
                     Text("Here is your encrypted message:", textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(16.dp))
@@ -248,17 +265,11 @@ fun TryItCard(state: TryItState, onAction: (TryItAction) -> Unit, viewModel: Mai
                             .padding(8.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    if (state.encryptedMessage == "Tap 'Generate' to create a test message.") {
-                        Button(onClick = { onAction(TryItAction.GenerateMessage) }) {
-                            Text("Generate")
-                        }
-                    } else {
-                        Button(onClick = { viewModel.decryptTryItMessage(state.encryptedMessage) }) {
-                            Text("Decrypt")
-                        }
+                    Button(onClick = { onAction(TryItAction.DecryptMessage(state.encryptedMessage, "")) }) {
+                        Text("Decrypt")
                     }
                 }
-                is TryItState.AwaitingPassword -> {
+                is TryItState.AwaitingDecryptionPassword -> {
                     var password by remember { mutableStateOf("") }
                     Text("Please enter your password to decrypt the message.")
                     OutlinedTextField(

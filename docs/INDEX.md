@@ -6,6 +6,7 @@ This documentation is a reference for the Barcodencrypt application.
 *   [Authentication](./auth.md)
 *   [Screens](./screens.md)
 *   [Workflow](./workflow.md)
+*   [Try It Mode](./try_it_mode.md)
 *   [UI/UX](./UI_UX.md)
 *   [Performance](./performance.md)
 *   [Data Layer](./data_layer.md)
