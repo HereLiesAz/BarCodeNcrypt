@@ -16,7 +16,7 @@ The application's security model has evolved to provide stronger guarantees.
 
 *   **v1 (Legacy):** The initial proof-of-concept used standard AES-GCM for encryption.
 *   **v2 (Current & Implemented):** To provide **forward secrecy**, the current design uses an HMAC-based Key Derivation Function (HKDF, RFC 5869). Instead of using a barcode's raw value directly, a unique encryption key is derived for every single message by combining the barcode's secret value (the IKM) with a per-message salt and an incrementing counter.
-*   **v3 (Planned but Blocked):** A future design aims to implement a **Double Ratchet** algorithm for **post-compromise security**. This is currently **blocked** as it requires `X25519` elliptic curve cryptography, which is not included in the standard Android JCA.
+*   **v3 (Implemented):** To provide **post-compromise security**, the app now implements a **Double Ratchet** algorithm, inspired by the Signal protocol. This combines a Diffie-Hellman (DH) ratchet for asynchronous key agreement with a symmetric-key ratchet for per-message keys. This ensures that even if a key is compromised, the session can "heal" and become secure again after a few message exchanges. The implementation uses Google's Tink library for the underlying `X25519` elliptic curve cryptography.
 
 ## Key Generation (v2)
 
