@@ -23,7 +23,8 @@ class TryItViewModel(application: Application) : AndroidViewModel(application) {
         DECRYPTED
     }
 
-    private val barcodeDao: BarcodeDao = AppDatabase.getDatabase(application).barcodeDao()
+    private val MOCK_PASSWORD = "password123"
+    private val barcodeDao: BarcodeDao = AppDatabase.getDatabase(application, MOCK_PASSWORD).barcodeDao()
 
     private val _encryptedMessage = MutableLiveData<String>()
     val encryptedMessage: LiveData<String> = _encryptedMessage
@@ -35,7 +36,6 @@ class TryItViewModel(application: Application) : AndroidViewModel(application) {
     val stage: LiveData<Stage> = _stage
 
     private val originalMessage = "This is a secret message!"
-    private val MOCK_PASSWORD = "password123"
     private val DEMO_KEY_NAME = "DemoKey"
 
     fun generateMessage() {

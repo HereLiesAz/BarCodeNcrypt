@@ -2,7 +2,6 @@ package com.hereliesaz.barcodencrypt.ui
 
 import android.app.Application
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +52,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.hereliesaz.barcodencrypt.R
 import com.hereliesaz.barcodencrypt.data.Barcode
+import com.hereliesaz.barcodencrypt.data.KeyType
 import com.hereliesaz.barcodencrypt.util.ScannerManager
 import com.hereliesaz.barcodencrypt.util.SettingsManager
 import com.hereliesaz.barcodencrypt.viewmodel.ContactDetailViewModel
@@ -85,7 +85,7 @@ fun KeyCreationDialog(
                     onDismiss = { onKeyCreationStateChange(KeyCreationState.Idle) },
                     onKeyTypeSelected = { keyType ->
                         when (keyType) {
-                            com.hereliesaz.barcodencrypt.data.KeyType.SINGLE_BARCODE -> {
+                            KeyType.SINGLE_BARCODE -> {
                                 coroutineScope.launch {
                                     ScannerManager.requestScan { barcodeValue ->
                                         if (!barcodeValue.isNullOrBlank()) {
@@ -94,14 +94,14 @@ fun KeyCreationDialog(
                                     }
                                 }
                             }
-                            com.hereliesaz.barcodencrypt.data.KeyType.BARCODE_SEQUENCE -> {
+                            KeyType.BARCODE_SEQUENCE -> {
                                 onKeyCreationStateChange(KeyCreationState.AwaitingSequenceScan(emptyList()))
                             }
-                            com.hereliesaz.barcodencrypt.data.KeyType.PASSWORD -> {
+                            KeyType.PASSWORD -> {
                                 coroutineScope.launch {
                                     ScannerManager.requestScan { barcodeValue ->
                                         if (!barcodeValue.isNullOrBlank()) {
-                                            viewModel.createAndInsertBarcode(barcodeValue, keyType = com.hereliesaz.barcodencrypt.data.KeyType.PASSWORD)
+                                            viewModel.createAndInsertBarcode(barcodeValue, keyType = KeyType.PASSWORD)
                                             onKeyCreationStateChange(KeyCreationState.Idle)
                                             Toast.makeText(context, context.getString(R.string.key_added), Toast.LENGTH_SHORT).show()
                                         }
@@ -275,7 +275,7 @@ fun AddAssociationDialog(
 @Composable
 fun KeyTypeSelectionDialog(
     onDismiss: () -> Unit,
-    onKeyTypeSelected: (com.hereliesaz.barcodencrypt.data.KeyType) -> Unit
+    onKeyTypeSelected: (KeyType) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -286,21 +286,21 @@ fun KeyTypeSelectionDialog(
                     text = "Single Barcode (then optionally add password)",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onKeyTypeSelected(com.hereliesaz.barcodencrypt.data.KeyType.SINGLE_BARCODE) }
+                        .clickable { onKeyTypeSelected(KeyType.SINGLE_BARCODE) }
                         .padding(vertical = 12.dp)
                 )
                 Text(
                     text = "Barcode Sequence (then optionally add password)",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onKeyTypeSelected(com.hereliesaz.barcodencrypt.data.KeyType.BARCODE_SEQUENCE) }
+                        .clickable { onKeyTypeSelected(KeyType.BARCODE_SEQUENCE) }
                         .padding(vertical = 12.dp)
                 )
                 Text(
                     text = "Password (scanned from a QR code)",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onKeyTypeSelected(com.hereliesaz.barcodencrypt.data.KeyType.PASSWORD) }
+                        .clickable { onKeyTypeSelected(KeyType.PASSWORD) }
                         .padding(vertical = 12.dp)
                 )
             }
@@ -324,7 +324,7 @@ fun ContactDetailScreen(
     val viewModel: ContactDetailViewModel = viewModel(
         factory = ContactDetailViewModelFactory(context.applicationContext as Application, contactLookupKey!!)
     )
-    val barcodes by viewModel.barcodes.observeAsState(emptyList())
+    val barcodes by viewModel.barcodes.observeAsState(initial = emptyList<Barcode>()) // Explicitly set the type here
     var associations by remember { mutableStateOf<Set<String>>(emptySet()) }
     var refreshTrigger by remember { mutableStateOf(false) }
     var keyCreationState by remember { mutableStateOf<KeyCreationState>(KeyCreationState.Idle) }
@@ -347,7 +347,7 @@ fun ContactDetailScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                keyCreationState = KeyCreationState.Idle
+                keyCreationState = KeyCreationState.Idle // This will now show the KeyTypeSelectionDialog
             }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.add_barcode_content_description))
             }

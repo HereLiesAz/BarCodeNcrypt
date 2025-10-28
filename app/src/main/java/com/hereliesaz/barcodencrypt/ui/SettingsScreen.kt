@@ -1,5 +1,6 @@
 package com.hereliesaz.barcodencrypt.ui
 
+import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
@@ -17,24 +18,29 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.R
 import com.hereliesaz.barcodencrypt.services.BarcodeAutofillService
 import com.hereliesaz.barcodencrypt.viewmodel.SettingsViewModel
+import com.hereliesaz.barcodencrypt.viewmodel.SettingsViewModelFactory
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SettingsScreen(
-    navController: NavController,
-    viewModel: SettingsViewModel = viewModel()
+    navController: NavController
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalContext.current as androidx.lifecycle.LifecycleOwner
+    val viewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModelFactory(context.applicationContext as Application)
+    )
+    val lifecycleOwner = LocalLifecycleOwner.current
     val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
     var showPasswordDialog by remember { mutableStateOf(false) }
 

@@ -5,7 +5,6 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.hereliesaz.barcodencrypt.util.AuthManager
 import com.hereliesaz.barcodencrypt.util.LogConfig
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,8 +21,8 @@ class OnboardingViewModel(private val authManager: AuthManager) : ViewModel() {
     private val _signInRequest = MutableSharedFlow<GetCredentialRequest>()
     val signInRequest: SharedFlow<GetCredentialRequest> = _signInRequest.asSharedFlow()
 
-    private val _signInResult = MutableSharedFlow<GoogleIdTokenCredential?>()
-    val signInResult: SharedFlow<GoogleIdTokenCredential?> = _signInResult.asSharedFlow()
+    private val _signInResult = MutableSharedFlow<Boolean>()
+    val signInResult: SharedFlow<Boolean> = _signInResult.asSharedFlow()
 
     private val _signInError = MutableStateFlow(false)
     val signInError: StateFlow<Boolean> = _signInError.asStateFlow()
@@ -56,12 +55,15 @@ class OnboardingViewModel(private val authManager: AuthManager) : ViewModel() {
         if (LogConfig.AUTH_FLOW) Log.d(TAG, "handleSignInResult: Handling successful credential response.")
         viewModelScope.launch {
             val credential = authManager.handleSignInResult(result)
-            _signInResult.emit(credential)
+            _signInResult.emit(credential != null)
         }
     }
 
     fun onSetPasswordClicked(password: String) {
         authManager.setPassword(password)
+        viewModelScope.launch {
+            _signInResult.emit(true)
+        }
     }
 
     override fun onCleared() {
