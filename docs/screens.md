@@ -1,22 +1,18 @@
-# Screens
+# Screens and UI
 
-This document describes the main screens and UI components of the Barcodencrypt application.
+This document describes the main screens and UI components of the BarcodeNcrypt application.
 
-## The Hierophant (The UI Layer)
+## Main Screen
 
-The Hierophant is the collection of Activities and Composable UIs through which the user interacts with the esoteric backend. It is the bridge between the user's world and the hidden machinery of the app, making the abstract tangible.
+The main screen is the central hub of the app, providing access to all of the app's features through the AzNavRail navigation component. The navigation rail includes the following items:
 
-### Main Screen
-The main screen of the application provides access to the core features:
-*   **Manage Contact Keys:** Navigates to a screen where you can choose a contact from the address book to manage their associated barcodes.
-*   **Compose Message:** Opens the message composition screen.
-*   **"Try Me" Button:** An interactive tutorial that guides new users through a complete encryption and decryption cycle.
-*   **Watcher Service Toggle:** Allows the user to enable or disable the `MessageDetectionService` and grant the necessary permissions.
+*   **Contacts:** Manage the barcodes assigned to your contacts.
+*   **Compose:** Create a new encrypted message.
+*   **Tutorial:** Access the interactive tutorial to learn how to use the app.
+*   **Settings:** Configure the app's settings, including the on-screen detection service.
 
-### Key Activities
-*   **`ContactDetailActivity`**: Presents the Scribe's records, showing the barcodes (keys) assigned to a specific contact.
-*   **`ComposeActivity`**: Allows for the creation of new encrypted messages. The user can select a recipient, a key, write the message, and choose options like single-use.
-*   **`ScannerActivity`**: Initiates the scanning ritual that awakens the other agents. This activity is used for adding new keys, decrypting messages, and using the password assistant.
+## Core Components
 
-### UI Managers
-*   **`ScannerManager`**: A central nerve that allows other components, like the Poltergeist (OverlayService), to command the physical body to open its eye (the camera).
+*   **Contact Details:** This screen displays the barcodes assigned to a specific contact. From here, you can add new barcodes, remove existing barcodes, and set a default barcode for a contact.
+*   **Compose Message:** This screen allows you to create and encrypt a new message. You can select a recipient, choose a barcode to use for encryption, and set the security parameters for the message.
+*   **Barcode Scanner:** The barcode scanner is used to scan barcodes for a variety of purposes, including adding a new barcode to a contact, decrypting a message, and filling in a password field.

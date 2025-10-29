@@ -1,66 +1,53 @@
-# BarCodeNcrypt
+# BarcodeNcrypt
 
-I had this dream where, in the middle of our conversation, Dwayne "The Rock" Johnson pulled out his keys and scanned the barcode on a coupon club key fob.    
-"What was that?" I asked.     
-"Oh," The Rock showed me his fob. "This is my password."    
+I had this dream where, in the middle of our conversation, Dwayne "The Rock" Johnson pulled out his keys and scanned the barcode on a coupon club key fob.
+"What was that?" I asked.
+"Oh," The Rock showed me his fob. "This is my password."
 
-While holes in a safe make for a way in, holes can be filled. Walls can be made stronger. The consistently most insecure part of security is how you unlock it, and people are bad at making their own keys secure. BarCodEncrypt is an attempt to increase security without demanding more effort from your brain-hole.
+While holes in a safe make for a way in, holes can be filled. Walls can be made stronger. The consistently most insecure part of security is how you unlock it, and people are bad at making their own keys secure. BarcodeNcrypt is an attempt to increase security without demanding more effort from your brain-hole.
 
 ## Concept & Core Features
 
-BarCodEncrypt is an Android application that uses physical barcodes and QR codes as keys for encryption and password management. The core idea is to introduce a tangible, physical barrier to digital security operations. The application is built with Jetpack Compose and Material 3 and operates on three main principles:
+BarcodeNcrypt is an Android application where physical barcodes serve as the keys for decrypting messages. The core idea is that any message can be encrypted, and to see the plaintext, the recipient must scan a predefined barcode. This introduces a tangible, physical barrier to digital security.
 
-1.  **Physical Keys for Digital Security:** Instead of easily guessed or stolen digital passwords, the app uses physical barcodes as the root secret for cryptographic operations.
-2.  **Ephemeral & Secure Messaging:** A user can link a barcode to a contact, encrypt a message, and share it through any platform. The app's background service detects this message on the recipient's screen and prompts them to scan the corresponding physical barcode to decrypt it. Messages can be configured to be single-use or to expire after a set time.
-3.  **Passive Password Assistance:** The same background service can detect when a user selects a password field in any application. It provides a simple overlay to scan any barcode, instantly pasting its raw content into the field, acting as a simple, physically-keyed password manager.
+The app operates on these main principles:
+
+1.  **Barcode-Based Decryption:** The key to unlocking a message is a physical barcode. This makes security tangible and less reliant on memorable (and often weak) passwords.
+2.  **On-Screen Message Detection:** A background service watches for encrypted message headers on the screen. When a header is found, the app highlights the message, making it interactive.
+3.  **Sender-Controlled Security:** The sender can define how long a message is visible (time-to-live) and how many times it can be decrypted. These "time bomb" parameters are embedded securely within the encrypted message itself.
+4.  **Password Augmentation:** Users can combine a barcode with a password for two-factor security. This functionality will also be used to augment existing password managers with barcode-based authentication.
+5.  **Interactive Tutorial:** A "Try It" mode provides a mock chat interface to walk users through the send/receive process, which also serves to test the app's core on-screen functionality.
+
+For more detailed documentation, please see the full [documentation index](./docs/INDEX.md).
 
 ## How It Works Step-by-Step
 
-### Advanced Key Types
-
-BarCodEncrypt supports two advanced key types for enhanced security:
-
-*   **Password-Protected Keys:** When creating a key, you can choose to protect it with a password. When encrypting or decrypting with this key, you will be prompted to enter the password. The key is derived from both the barcode and the password, so an attacker would need both to compromise your messages.
-*   **Barcode Sequence Keys:** You can use a sequence of barcodes as a single key. When creating the key, you can scan multiple barcodes in a specific order. To encrypt or decrypt, you will need to scan the same barcodes in the same order. This adds another layer of security, as an attacker would need to know the correct sequence of barcodes.
-
-You can also combine these two features to create a password-protected barcode sequence key.
-
-### Interactive Tutorial ("Try Me")
-
-For new users, the app includes a "Try Me" button on the main navigation rail. This interactive tutorial guides you through a complete encryption and decryption cycle without needing a second person or device. It will walk you through:
-1.  Scanning a barcode to act as a temporary, secret key.
-2.  Showing you a mock conversation where a message is encrypted with your key.
-3.  Guiding you to tap the highlighted message and scan the same barcode again to decrypt it.
-
 ### Encryption
-1.  **Manage Keys:** From the main screen, select "Manage Contact Keys" to choose a contact from your phone's address book.
-2.  **Assign Barcode:** In the contact detail screen, tap the '+' button to open the scanner. Scan a barcode and give it a unique name to assign it to that contact.
-3.  **Compose:** From the main screen, select "Compose Message". Select your recipient and the specific key you want to use.
-4.  **Encrypt & Share:** Write your message, choose your options (e.g., single-use), and tap "Encrypt". The encrypted text can then be copied and pasted into any other application.
+1.  **Assign Barcode:** From the main screen, navigate to "Contacts". Select a contact and scan a barcode to assign it a unique identifier. This action creates an entry in a secure, encrypted log that manages the rolling keys for that contact.
+2.  **Compose:** Go to "Compose". Select your recipient and the specific barcode you want to use.
+3.  **Set Security:** Write your message and set your desired security options, such as how many times the message can be opened or for how long it will be valid.
+4.  **Encrypt & Share:** Tap "Encrypt". The app generates the encrypted text, which you can then copy and paste into any other application to send.
 
 ### Decryption & Viewing
-1.  **Enable Service:** From the main screen, enable the "Watcher Service" and grant the necessary Accessibility and Overlay permissions.
-2.  **Detect:** When an encrypted message appears on screen, the Watcher service will detect it and place a semi-transparent yellow overlay on it.
-3.  **Scan & Reveal:** Tap the overlay to open the barcode scanner. Scan the correct barcode that was used to encrypt the message. The overlay will turn green and reveal the plaintext.
+1.  **Enable Service:** From "Settings", enable the "On-Screen Detection Service" and grant the necessary Accessibility permissions.
+2.  **Detect:** When an encrypted message appears on screen, the service will detect its header and highlight the ciphertext.
+3.  **Scan & Reveal:** Tap the highlighted text. This will open the barcode scanner. Scan the correct barcode associated with the message.
+4.  **View:** If the barcode is correct, the temporary key is retrieved, the message is decrypted, and the plaintext appears in place of the ciphertext. If the key is incorrect, the highlight will show gibberish.
 
 ## Technical Deep Dive
 
 ### Architecture
-BarCodEncrypt has been refactored to a modern, single-activity architecture using Jetpack Compose for the UI. This simplifies the navigation and state management, providing a more robust and maintainable codebase. The core components of the architecture are:
+BarcodeNcrypt is built with a modern, single-activity architecture using Jetpack Compose and is navigated with **AzNavRail**.
 
-*   **Single-Activity Architecture:** The app now uses a single `MainActivity` that hosts all the composable screens. Navigation is handled by a `NavHost` in `Navigation.kt`, which defines the different screens and their routes.
-*   **Jetpack Compose:** The entire UI is built with Jetpack Compose, a modern toolkit for building native Android UI. This allows for a more declarative and reactive UI, which is easier to develop and maintain.
-*   **`ScannerManager`:** To decouple the barcode scanning functionality from the UI, the app now uses a `ScannerManager` singleton. This object uses a `SharedFlow` to broadcast scan requests and a callback to handle the result, which allows any component to request a scan without needing a direct reference to the scanner UI.
-*   **`StateFlow`:** The ViewModels now use `StateFlow` to expose state to the UI. This provides a more modern and flexible way to handle state, and it's fully compatible with Jetpack Compose.
-*   **Hilt:** The app now uses Hilt for dependency injection. This simplifies the process of providing dependencies to the different components of the app, and it helps to create a more modular and testable codebase.
-*   **Background Services:** The app still relies on the `MessageDetectionService` (an `AccessibilityService`) and the `OverlayService` (with `SYSTEM_ALERT_WINDOW` permission) to provide its core functionality of on-screen text detection and overlay UI.
+*   **Single-Activity Architecture:** The app uses a single `MainActivity` to host all composable screens, with navigation handled by a `NavHost`.
+*   **Background Services:** The core functionality relies on two services:
+    *   `MessageDetectionService`: An `AccessibilityService` that scans on-screen text for the app's message headers.
+    *   `OverlayService`: Draws the highlight over detected text and handles the tap interaction to initiate scanning.
+*   **Dependency Injection:** Hilt is used to manage dependencies throughout the app.
 
 ### Security
-To protect against physical-access attacks, the entire database is **encrypted at rest** using SQLCipher. On first launch, the user is required to create a master password. This password is used to derive an encryption key that locks the database. The app cannot be accessed, and no keys can be read, without first providing this master password.
+The security model is designed around a rolling-key system managed by a central, encrypted script or log.
 
-### Cryptographic Model & Status
-The application's security model has evolved to provide stronger guarantees. The core concept is **feature-complete** based on the v2 cryptographic design.
-
-* **v1 (Legacy):** The initial proof-of-concept used standard AES-GCM for encryption.
-* **v2 (Current & Implemented):** To provide **forward secrecy**, the current design uses an HMAC-based Key Derivation Function (HKDF, RFC 5869). Instead of using a barcode's raw value directly, a unique encryption key is derived for every single message by combining the barcode's secret value (the IKM) with a per-message salt and an incrementing counter. This ensures that the compromise of a single message key does not reveal the master key or any other message keys.
-* **v3 (Implemented):** To provide **post-compromise security**, the app now implements a **Double Ratchet** algorithm, inspired by the Signal protocol. This combines a Diffie-Hellman (DH) ratchet for asynchronous key agreement with a symmetric-key ratchet for per-message keys. This ensures that even if a key is compromised, the session can "heal" and become secure again after a few message exchanges. The implementation uses Google's Tink library for the underlying `X25519` elliptic curve cryptography.
+*   **Encrypted Log:** This is the core of the security model. It associates a contact's barcode identifier with their rolling encryption key. When a message is sent or received, this log provides a temporary, single-use key.
+*   **Rolling Keys:** To ensure forward secrecy, a new key is used for each message, derived from a master key managed by the encrypted log.
+*   **Message Header:** A simple header identifies encrypted messages and contains metadata such as the number of texts in a batch and the security parameters (time-to-live, open count).
