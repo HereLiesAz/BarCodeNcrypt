@@ -1,43 +1,25 @@
 # Data Layer
 
-This document describes the data storage, cryptographic model, and key generation mechanisms of Barcodencrypt.
+This document describes the data storage, cryptographic model, and key generation mechanisms of BarcodeNcrypt.
 
-## The Scribe (AppDatabase)
+## Encrypted Script/Log
 
-The keeper of records, the lonely archivist. The Scribe is a `Room` database that maintains the fragile connections between contacts and the barcodes assigned to them. It remembers faces (contacts) and the sigils they carry (barcodes). It also keeps a blacklist of single-use messages that have been read and returned to the ether. This is the institutional memory of the system, a log of pacts made and whispers spent. Without the Scribe, every key is a stranger and every message is eternal.
+The core of BarcodeNcrypt's security model is an encrypted script/log that manages the rolling encryption keys. When a user assigns a barcode to a contact, the app generates a unique identifier for that barcode. This identifier is then used to create an encrypted file that is managed by the encrypted script/log.
 
-The database is provided to the repositories using Hilt for dependency injection.
+The script passes a temporary encrypted key back to the app with a rolling key of its own. This rolling key is used to encrypt and decrypt messages, ensuring that each message is encrypted with a unique key.
 
-## The Alchemist (EncryptionManager)
+## Rolling Encryption Key
 
-The heart of the mystery. The Alchemist is responsible for the great work: transmutation. It turns meaningful text into noise and, with the correct catalyst (the key), turns the noise back into meaning. It is a master of `AES/GCM`, weaving a new layer of obfuscation with every message, ensuring that only the intended key can unlock the secret.
+The rolling encryption key is a key that changes with each message. This is achieved by using a key derivation function (KDF) to derive a new key for each message from a master key. The master key is stored in the encrypted script/log and is never directly exposed to the app.
 
-## Cryptographic Model & Status
+This approach provides forward secrecy, meaning that if a single message key is compromised, it cannot be used to decrypt past or future messages.
 
-The application's security model has evolved to provide stronger guarantees.
+## Message Header
 
-*   **v1 (Legacy):** The initial proof-of-concept used standard AES-GCM for encryption.
-*   **v2 (Current & Implemented):** To provide **forward secrecy**, the current design uses an HMAC-based Key Derivation Function (HKDF, RFC 5869). Instead of using a barcode's raw value directly, a unique encryption key is derived for every single message by combining the barcode's secret value (the IKM) with a per-message salt and an incrementing counter.
-*   **v3 (Implemented):** To provide **post-compromise security**, the app now implements a **Double Ratchet** algorithm, inspired by the Signal protocol. This combines a Diffie-Hellman (DH) ratchet for asynchronous key agreement with a symmetric-key ratchet for per-message keys. This ensures that even if a key is compromised, the session can "heal" and become secure again after a few message exchanges. The implementation uses Google's Tink library for the underlying `X25519` elliptic curve cryptography.
+All encrypted messages in BarcodeNcrypt are identified by a simple header. This header contains the following information:
 
-## Key Generation (v2)
+*   **App Identifier:** A unique string that identifies the message as a BarcodeNcrypt message.
+*   **Message Count:** The number of messages included in the encrypted batch.
+*   **Security Parameters:** The security parameters for the message, such as the time-to-live and the opening count.
 
-The v2 model is based on **HMAC-based Key Derivation Function (HKDF)**.
-
-*   **Initial Keying Material (IKM):** The root secret derived from the barcode.
-*   **Salt:** A random value generated for each message and prepended to the ciphertext.
-*   **Pseudorandom Key (PRK):** Derived from the IKM and Salt using HKDF-Extract.
-*   **Message Counter:** An incrementing counter stored for each barcode.
-*   **Info String:** A context-specific string (`"BCEv2|msg"`) to ensure key uniqueness.
-
-The final message key is generated using HKDF-Expand: `MessageKey = HKDF-Expand(PRK, info="BCEv2|msg" | C, length=32)`.
-
-## New Message Format (v2)
-
-`BCE::v2::{options}::{barcode_identifier}::{counter}::{base64_payload}`
-
-## Security Considerations
-
-*   **Replay Attacks:** The client must store a `last_seen_counter` and reject messages with a counter less than or equal to it.
-*   **Passphrase Security:** The database should be encrypted at rest using a library like SQLCipher.
-*   **Counter Synchronization:** A mechanism to manually reset a key's counter may be needed.
+When the app detects a message with this header, it initiates the decryption process.
