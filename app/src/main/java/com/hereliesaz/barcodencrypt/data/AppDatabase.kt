@@ -62,17 +62,15 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // This migration is non-destructive for the contacts table, but will result in data loss for the barcodes table
-                // as the encryption method has changed and the old values cannot be decrypted.
+                // This migration is non-destructive for the contacts table.
+                // Data loss for the barcodes table is unavoidable due to encryption changes.
 
-                // Recreate contacts table without the V3 fields
                 db.execSQL("CREATE TABLE `contacts_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `lookupKey` TEXT NOT NULL, `name` TEXT NOT NULL)")
                 db.execSQL("INSERT INTO `contacts_new` (`id`, `lookupKey`, `name`) SELECT `id`, `lookupKey`, `name` FROM `contacts`")
                 db.execSQL("DROP TABLE `contacts`")
                 db.execSQL("ALTER TABLE `contacts_new` RENAME TO `contacts`")
                 db.execSQL("CREATE UNIQUE INDEX `index_contacts_lookupKey` ON `contacts` (`lookupKey`)")
 
-                // Recreate barcodes table with the simplified schema
                 db.execSQL("DROP TABLE `barcodes`")
                 db.execSQL("CREATE TABLE `barcodes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `contactLookupKey` TEXT NOT NULL, `name` TEXT NOT NULL, `encryptedValue` BLOB NOT NULL, `iv` BLOB NOT NULL, `counter` INTEGER NOT NULL, `keyType` TEXT NOT NULL)")
                 db.execSQL("CREATE INDEX `index_barcodes_contactLookupKey` ON `barcodes` (`contactLookupKey`)")

@@ -13,7 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import com.hereliesaz.barcodencrypt.services.MessageDetectionService
-import com.hereliesaz.barcodencrypt.ui.AppNavigation
+import com.hereliesaz.barcodencrypt.ui.App
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.LogConfig
 import com.hereliesaz.barcodencrypt.viewmodel.MainViewModel
@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             BarcodencryptTheme {
-                AppNavigation()
+                App()
             }
         }
     }

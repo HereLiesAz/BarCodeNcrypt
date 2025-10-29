@@ -10,8 +10,10 @@ import android.os.IBinder
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.ui.platform.ComposeView
 import com.hereliesaz.barcodencrypt.ui.ScannerActivity
+import com.hereliesaz.barcodencrypt.ui.composable.EncryptionOverlay
 import com.hereliesaz.barcodencrypt.ui.composable.SuggestionOverlay
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.Constants
@@ -20,16 +22,18 @@ class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
-    private var messageBounds: Rect? = null
+
+import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
+
+// ...
 
     companion object {
         const val EXTRA_MESSAGE = "extra_message"
         const val EXTRA_BOUNDS = "extra_bounds"
+        const val EXTRA_SHOW_ENCRYPT_BUTTON = "extra_show_encrypt_button"
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -39,45 +43,52 @@ class OverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         removeOverlay()
 
-        if (intent != null) {
-            val message = intent.getStringExtra(EXTRA_MESSAGE)
-            messageBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(EXTRA_BOUNDS, Rect::class.java)
+        intent?.let {
+            val message = it.getStringExtra(EXTRA_MESSAGE)
+            val bounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                it.getParcelableExtra(EXTRA_BOUNDS, Rect::class.java)
             } else {
                 @Suppress("DEPRECATION")
-                intent.getParcelableExtra(EXTRA_BOUNDS)
+                it.getParcelableExtra(EXTRA_BOUNDS)
             }
+            val showEncryptButton = it.getBooleanExtra(EXTRA_SHOW_ENCRYPT_BUTTON, false)
 
-            if (message != null && messageBounds != null) {
-                showOverlay(message, messageBounds!!)
+            if (bounds != null) {
+                showOverlay(message, bounds, showEncryptButton)
             }
         }
 
         return START_NOT_STICKY
     }
 
-    private fun showOverlay(message: String, bounds: Rect) {
+    private fun showOverlay(message: String?, bounds: Rect, showEncryptButton: Boolean) {
         overlayView = ComposeView(this).apply {
             setContent {
                 BarcodencryptTheme {
-                    SuggestionOverlay(
-                        message = message,
-                        onDecryptClick = {
-                            val intent = Intent(context, ScannerActivity::class.java).apply {
-                                action = Constants.ACTION_DECRYPT_MESSAGE
-                                putExtra(EXTRA_MESSAGE, message)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
+                    if (showEncryptButton && AccessibilityNodeHolder.node != null) {
+                        EncryptionOverlay(node = AccessibilityNodeHolder.node!!, onEncrypt = { encryptedText ->
                             removeOverlay()
-                        }
-                    )
+                        })
+                    } else if (message != null) {
+                        SuggestionOverlay(
+                            message = message,
+                            onDecryptClick = {
+                                val scannerIntent = Intent(context, ScannerActivity::class.java).apply {
+                                    action = Constants.ACTION_DECRYPT_MESSAGE
+                                    putExtra(EXTRA_MESSAGE, message)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                startActivity(scannerIntent)
+                                removeOverlay()
+                            }
+                        )
+                    }
                 }
             }
         }
 
         val params = WindowManager.LayoutParams(
-            bounds.width(),
+            if (showEncryptButton) WindowManager.LayoutParams.WRAP_CONTENT else bounds.width(),
             WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -89,7 +100,7 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = bounds.left
+            x = if (showEncryptButton) bounds.right else bounds.left
             y = bounds.top
         }
 
@@ -99,7 +110,6 @@ class OverlayService : Service() {
             e.printStackTrace()
         }
     }
-
 
     private fun removeOverlay() {
         overlayView?.let {
@@ -112,6 +122,7 @@ class OverlayService : Service() {
             }
         }
         overlayView = null
+        focusedNode = null
     }
 
     override fun onDestroy() {
@@ -119,4 +130,3 @@ class OverlayService : Service() {
         removeOverlay()
     }
 }
-
