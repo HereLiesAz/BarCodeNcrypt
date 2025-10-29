@@ -6,7 +6,7 @@ I had this dream where, in the middle of our conversation, Dwayne "The Rock" Joh
 
 While holes in a safe make for a way in, holes can be filled. Walls can be made stronger. The consistently most insecure part of security is how you unlock it, and people are bad at making their own keys secure. BarcodeNcrypt is an attempt to increase security without demanding more effort from your brain-hole.
 
-## Concept & Core Features
+For more detailed information, please see the full [documentation](./docs/INDEX.md).
 
 BarcodeNcrypt is an Android application where physical barcodes serve as the keys for decrypting messages. The core idea is that any message can be encrypted, and to see the plaintext, the recipient must scan a predefined barcode. This introduces a tangible, physical barrier to digital security.
 
