@@ -1,12 +1,18 @@
-# Authentication
+# Security Model
 
-This document describes the key types and password protection mechanisms in Barcodencrypt.
+This document describes the security features of BarcodeNcrypt, including sender-controlled security and password protection.
 
-## Advanced Key Types
+## Sender-Controlled Security
 
-BarCodEncrypt supports two advanced key types for enhanced security:
+BarcodeNcrypt empowers the sender of a message to control its security parameters. When sending a message, the sender can define:
 
-*   **Password-Protected Keys:** When creating a key, you can choose to protect it with a password. When encrypting or decrypting with this key, you will be prompted to enter the password. The key is derived from both the barcode and the password, so an attacker would need both to compromise your messages.
-*   **Barcode Sequence Keys:** You can use a sequence of barcodes as a single key. When creating the key, you can scan multiple barcodes in a specific order. To encrypt or decrypt, you will need to scan the same barcodes in the same order. This adds another layer of security, as an attacker would need to know the correct sequence of barcodes.
+*   **Time-to-Live (TTL):** The sender can set a time limit for how long a message can be decrypted. After the time limit has expired, the message can no longer be decrypted.
+*   **Opening Count:** The sender can specify how many times a message can be decrypted. Once the message has been decrypted the specified number of times, it can no longer be decrypted.
 
-You can also combine these two features to create a password-protected barcode sequence key.
+These security parameters are embedded within the encrypted message and are automatically enforced by the app.
+
+## Password Protection
+
+For an additional layer of security, users can combine a barcode with a password. When this feature is enabled, the decryption key is derived from both the barcode and the password. This means that an attacker would need to have both the physical barcode and the password to decrypt a message.
+
+This feature is also used by the app's password assistant, which allows users to fill in password fields by scanning a barcode. In the future, this functionality will be extended to augment existing password providers with barcode-based authentication.

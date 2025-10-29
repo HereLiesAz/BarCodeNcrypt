@@ -1,22 +1,32 @@
-# Task Flow
+# User Guide
 
-This document outlines the step-by-step user flows for key management, encryption, and decryption in Barcodencrypt.
+This document provides a step-by-step guide to using BarcodeNcrypt.
 
-## How It Works Step-by-Step
+## Encryption
 
-### Encryption
-1.  **Manage Keys:** From the main screen, select "Manage Contact Keys" to choose a contact from your phone's address book.
-2.  **Assign Barcode:** In the contact detail screen, tap the '+' button to open the scanner. Scan a barcode and give it a unique name to assign it to that contact.
-3.  **Compose:** From the main screen, select "Compose Message". Select your recipient and the specific key you want to use.
-4.  **Encrypt & Share:** Write your message, choose your options (e.g., single-use), and tap "Encrypt". The encrypted text can then be copied and pasted into any other application.
+1.  **Assign a Barcode to a Contact:**
+    *   From the main screen, go to "Contacts."
+    *   Select a contact and scan a barcode to assign it to them.
+2.  **Compose a Message:**
+    *   From the main screen, go to "Compose."
+    *   Select a recipient, choose the barcode you want to use, and write your message.
+    *   Set the security parameters for the message, such as the time-to-live and opening count.
+3.  **Encrypt and Send:**
+    *   Tap "Encrypt" to encrypt the message.
+    *   Copy the encrypted message and paste it into any messaging app to send it.
 
-### Decryption & Viewing
-1.  **Enable Service:** From the main screen, enable the "Watcher Service" and grant the necessary Accessibility and Overlay permissions.
-2.  **Detect:** When an encrypted message appears on screen, the Watcher service will detect it and place a semi-transparent yellow overlay on it.
-3.  **Scan & Reveal:** Tap the overlay to open the barcode scanner. Scan the correct barcode that was used to encrypt the message. The overlay will turn green and reveal the plaintext.
+## Decryption
 
-### Interactive Tutorial ("Try Me")
-For new users, the app includes a "Try Me" button on the main navigation rail. This interactive tutorial guides you through a complete encryption and decryption cycle without needing a second person or device. It will walk you through:
-1.  Scanning a barcode to act as a temporary, secret key.
-2.  Showing you a mock conversation where a message is encrypted with your key.
-3.  Guiding you to tap the highlighted message and scan the same barcode again to decrypt it.
+1.  **Enable the On-Screen Detection Service:**
+    *   From the main screen, go to "Settings" and enable the on-screen detection service.
+2.  **Decrypt a Message:**
+    *   When an encrypted message appears on the screen, the app will highlight it.
+    *   Tap the highlighted message to open the barcode scanner.
+    *   Scan the correct barcode to decrypt the message.
+
+## Interactive Tutorial
+
+The interactive tutorial provides a mock chat interface to guide you through the process of sending and receiving encrypted messages. To access the tutorial, go to "Tutorial" from the main screen. The tutorial will walk you through the following steps:
+
+1.  **Sending a Message:** You will be guided through the process of composing and encrypting a message.
+2.  **Receiving a Message:** You will see how an encrypted message appears on the screen and how to decrypt it.

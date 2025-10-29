@@ -1,21 +1,18 @@
 # UI/UX
 
-This document covers the user interaction and experience aspects of Barcodencrypt.
+This document covers the user interaction and experience aspects of BarcodeNcrypt.
 
-## The Poltergeist (OverlayService)
+## On-Screen Interaction
 
-A summoned spirit, a localized disturbance. The Poltergeist is called forth by the Watcher to haunt a specific location on the screen. It can manifest in two forms:
+BarcodeNcrypt uses an overlay system to interact with encrypted messages directly on the screen. This system has two primary functions:
 
-*   **Decryption Overlay:** A shimmering, semi-transparent yellow overlay that appears over encrypted text. Tapping this overlay initiates the decryption process, prompting the user to scan the correct barcode. Once the correct key is presented, the overlay turns green, revealing the plaintext. It can be configured to linger for a set time or to vanish after a single viewing.
-*   **Password Assistant:** A small, discreet icon that appears next to a password field. Tapping this icon opens the barcode scanner, allowing the user to fill the password field with the raw content of any barcode.
+*   **Decryption Overlay:** When an encrypted message is detected, a semi-transparent yellow overlay appears over it. Tapping this overlay opens the barcode scanner. If the correct barcode is scanned, the overlay turns green and reveals the decrypted message. If the incorrect barcode is scanned, the overlay will display gibberish, indicating a failed decryption attempt.
+*   **Password Assistant:** A small icon appears next to password fields, allowing the user to scan a barcode to fill in the password. This feature is a convenience and does not use the app's encryption model.
 
-## Jetpack Compose UI
+## Navigation
 
-The app's UI is built entirely with Jetpack Compose, a modern toolkit for building native Android UI. This provides a more declarative and reactive UI, which is easier to develop and maintain. The app uses a single-activity architecture, with a `MainActivity` that hosts all the composable screens. Navigation is handled by a `NavHost` in `Navigation.kt`, which defines the different screens and their routes.
+The app's navigation is handled by the AzNavRail component, a customizable navigation rail that provides a consistent and intuitive user experience. The navigation rail allows users to quickly access the app's main features, such as managing contacts, composing messages, and accessing the interactive tutorial.
 
-## Interactive Tutorial ("Try Me")
+## Interactive Tutorial
 
-For new users, the app includes a "Try Me" button on the main navigation rail. This interactive tutorial provides a hands-on experience of the core functionality without requiring a second person or device. The tutorial guides the user through:
-1.  Scanning a barcode to act as a temporary, secret key.
-2.  Displaying a mock conversation where a message is encrypted with the user's key.
-3.  Prompting the user to tap the highlighted message and scan the same barcode again to decrypt it, demonstrating the end-to-end workflow in a controlled environment.
+The interactive tutorial is a key feature of the app, providing a mock chat interface to guide users through the process of sending and receiving encrypted messages. The tutorial also serves as a testing tool, verifying that the on-screen detection and decryption functionality is working correctly.
