@@ -46,11 +46,14 @@ For new users, the app includes a "Try Me" button on the main navigation rail. T
 ## Technical Deep Dive
 
 ### Architecture
-To achieve its passive, on-screen functionality, BarCodEncrypt integrates deeply with the Android OS. This is accomplished primarily through two background services:
-* **`MessageDetectionService`**: An `AccessibilityService` that monitors the screen's content in real-time. It is responsible for detecting specially formatted encrypted text strings and identifying when the user has focused on a password input field.
-* **`OverlayService`**: This service has `SYSTEM_ALERT_WINDOW` permission, allowing it to draw on top of other applications. When the `MessageDetectionService` finds a target, the `OverlayService` is responsible for rendering the decryption interface or the password assistant icon.
+BarCodEncrypt has been refactored to a modern, single-activity architecture using Jetpack Compose for the UI. This simplifies the navigation and state management, providing a more robust and maintainable codebase. The core components of the architecture are:
 
-This architecture requires significant user permissions (`CAMERA`, `READ_CONTACTS`, `SYSTEM_ALERT_WINDOW`) to function.
+*   **Single-Activity Architecture:** The app now uses a single `MainActivity` that hosts all the composable screens. Navigation is handled by a `NavHost` in `Navigation.kt`, which defines the different screens and their routes.
+*   **Jetpack Compose:** The entire UI is built with Jetpack Compose, a modern toolkit for building native Android UI. This allows for a more declarative and reactive UI, which is easier to develop and maintain.
+*   **`ScannerManager`:** To decouple the barcode scanning functionality from the UI, the app now uses a `ScannerManager` singleton. This object uses a `SharedFlow` to broadcast scan requests and a callback to handle the result, which allows any component to request a scan without needing a direct reference to the scanner UI.
+*   **`StateFlow`:** The ViewModels now use `StateFlow` to expose state to the UI. This provides a more modern and flexible way to handle state, and it's fully compatible with Jetpack Compose.
+*   **Hilt:** The app now uses Hilt for dependency injection. This simplifies the process of providing dependencies to the different components of the app, and it helps to create a more modular and testable codebase.
+*   **Background Services:** The app still relies on the `MessageDetectionService` (an `AccessibilityService`) and the `OverlayService` (with `SYSTEM_ALERT_WINDOW` permission) to provide its core functionality of on-screen text detection and overlay UI.
 
 ### Security
 To protect against physical-access attacks, the entire database is **encrypted at rest** using SQLCipher. On first launch, the user is required to create a master password. This password is used to derive an encryption key that locks the database. The app cannot be accessed, and no keys can be read, without first providing this master password.

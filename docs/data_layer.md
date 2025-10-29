@@ -6,6 +6,8 @@ This document describes the data storage, cryptographic model, and key generatio
 
 The keeper of records, the lonely archivist. The Scribe is a `Room` database that maintains the fragile connections between contacts and the barcodes assigned to them. It remembers faces (contacts) and the sigils they carry (barcodes). It also keeps a blacklist of single-use messages that have been read and returned to the ether. This is the institutional memory of the system, a log of pacts made and whispers spent. Without the Scribe, every key is a stranger and every message is eternal.
 
+The database is provided to the repositories using Hilt for dependency injection.
+
 ## The Alchemist (EncryptionManager)
 
 The heart of the mystery. The Alchemist is responsible for the great work: transmutation. It turns meaningful text into noise and, with the correct catalyst (the key), turns the noise back into meaning. It is a master of `AES/GCM`, weaving a new layer of obfuscation with every message, ensuring that only the intended key can unlock the secret.

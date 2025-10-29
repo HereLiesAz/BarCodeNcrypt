@@ -31,7 +31,7 @@
         tools:targetApi="33">
 
         <activity
-            android:name=".ui.PasswordActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.App.Starting">
             <intent-filter>
@@ -39,48 +39,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Barcodencrypt" />
-
-        <!-- The Ritual Chamber for scanning. -->
-        <activity
-            android:name=".ui.ScannerActivity"
-            android:theme="@style/Theme.Barcodencrypt" />
-
-        <!-- The Alchemist's Workshop. -->
-        <activity
-            android:name=".ui.ComposeActivity"
-            android:label="@string/compose_message"
-            android:theme="@style/Theme.Barcodencrypt" />
-
-        <!-- The Archives. -->
-        <activity
-            android:name=".ui.ContactDetailActivity"
-            android:label="@string/contact_details"
-            android:theme="@style/Theme.Barcodencrypt" />
-
-        <!-- A new ghost for the password machine. -->
-        <activity
-            android:name=".ui.PasswordScannerTrampolineActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <!-- A trampoline for the decryption scanner -->
-        <activity
-            android:name=".ui.AutofillScannerTrampolineActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <!-- ADDED SettingsActivity -->
-        <activity
-            android:name=".ui.SettingsActivity"
-            android:label="Settings"
-            android:theme="@style/Theme.Barcodencrypt" />
-
-        <activity
-            android:name=".ui.OnboardingActivity"
-            android:theme="@style/Theme.Barcodencrypt" />
 
         <!-- The Watcher, forever vigilant. -->
         <service
@@ -102,11 +60,6 @@
             android:name=".services.OverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse"/>
-
-        <activity
-            android:name=".ui.MockMessagesActivity"
-            android:label="Mock Conversation"
-            android:theme="@style/Theme.Barcodencrypt" />
 
     </application>
 
