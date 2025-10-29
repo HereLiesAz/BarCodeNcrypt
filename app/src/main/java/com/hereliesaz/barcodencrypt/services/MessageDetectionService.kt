@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
 import com.hereliesaz.barcodencrypt.util.MessageParser
 
 class MessageDetectionService : AccessibilityService() {
@@ -70,10 +71,6 @@ class MessageDetectionService : AccessibilityService() {
         }
         return null
     }
-
-import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
-
-// ...
 
     private fun startOverlayService(message: String? = null, bounds: Rect, showEncryptButton: Boolean = false, node: AccessibilityNodeInfo? = null) {
         stopService(Intent(this, OverlayService::class.java))
