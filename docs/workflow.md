@@ -4,12 +4,14 @@ This document explains the encryption and decryption process in BarcodeNcrypt.
 
 ## Encryption
 
-1.  **Assign Barcode:** Assign a barcode to a contact. This creates an encrypted file in the app's script/log, which manages the rolling encryption key for that contact.
-2.  **Compose Message:** When you compose a message, the app requests a temporary encrypted key from the script/log.
-3.  **Encrypt and Send:** The app uses the temporary key to encrypt the message. The encrypted message, along with its header, can then be sent through any messaging app.
+1.  **Assign Barcode:** Assign a barcode to a contact. When the barcode is first used for encryption, the `EncryptedScriptLogManager` will create a new `EncryptedScriptLog` entity in the database.
+2.  **In-Place Encryption:** When you are in any app and want to send an encrypted message, the BarcodeNcrypt overlay will appear.
+3.  **Get Temporary Key:** The `EncryptionManager` requests a new temporary key from the `EncryptedScriptLogManager`.
+4.  **Encrypt:** The `EncryptionManager` uses the temporary key to encrypt the message and prepends the `MessageHeader`.
 
 ## Decryption
 
 1.  **On-Screen Detection:** The app's background service detects a BarcodeNcrypt message on the screen and highlights it.
 2.  **Scan Barcode:** The user taps the highlighted message, which opens the barcode scanner.
-3.  **Decrypt Message:** The app uses the scanned barcode to retrieve the correct rolling key from the script/log and decrypt the message. If the key is correct, the message is displayed in plaintext. If not, the user sees gibberish.
+3.  **Get Temporary Key:** The `EncryptionManager` requests a new temporary key from the `EncryptedScriptLogManager`.
+4.  **Decrypt Message:** The `EncryptionManager` uses the temporary key to decrypt the message. If the key is correct, the message is displayed in plaintext. If not, the user sees gibberish.

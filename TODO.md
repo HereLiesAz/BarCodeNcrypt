@@ -4,23 +4,23 @@ This document outlines the step-by-step plan to build the BarcodeNcrypt applicat
 
 ## Phase 1: Core Cryptography and Data Layer
 
-1.  **Implement the Encrypted Script/Log:**
+1.  **[x] Implement the Encrypted Script/Log:**
     *   Create a secure mechanism for storing and managing rolling encryption keys for each contact. This will be the foundation of the app's security model.
     *   This should be a new class, separate from the `EncryptionManager`, that handles the creation and retrieval of temporary keys.
 
-2.  **Implement the Rolling Encryption Key Logic:**
+2.  **[x] Implement the Rolling Encryption Key Logic:**
     *   Update the `EncryptionManager` to use the new encrypted script/log to generate a unique key for each message.
     *   Ensure that the `EncryptionManager` can request a new temporary key from the script/log for each encryption operation.
 
-3.  **Define and Implement the Message Header:**
+3.  **[x] Define and Implement the Message Header:**
     *   Create a class or data structure to represent the message header, including the app identifier, message count, and security parameters.
     *   Update the `EncryptionManager` to prepend this header to all encrypted messages.
 
-4.  **Implement Sender-Controlled Security:**
+4.  **[x] Implement Sender-Controlled Security:**
     *   Add a mechanism to the `EncryptionManager` to embed the time-to-live and opening count into the message header.
     *   Update the decryption logic to enforce these security parameters.
 
-5.  **Implement Password-Protected Barcodes:**
+5.  **[x] Implement Password-Protected Barcodes:**
     *   Update the key generation logic to incorporate a password, if one is provided by the user.
     *   The decryption key should be derived from both the barcode and the password.
 
@@ -34,9 +34,9 @@ This document outlines the step-by-step plan to build the BarcodeNcrypt applicat
     *   Create a screen that displays a list of contacts and their assigned barcodes.
     *   Allow the user to add, remove, and manage the barcodes for each contact.
 
-3.  **Implement the "Compose" Screen:**
-    *   Create a screen for composing and encrypting messages.
-    *   The user should be able to select a recipient, choose a barcode, write a message, and set the security parameters.
+3.  **Implement the In-Place Encryption Overlay:**
+    *   Create an overlay that appears when a user is in a text field and wants to encrypt a message.
+    *   The overlay should allow the user to select a recipient, choose a barcode, write a message, and set the security parameters.
 
 4.  **Implement the "Tutorial" Screen:**
     *   Create a mock chat interface that guides the user through the process of sending and receiving encrypted messages.

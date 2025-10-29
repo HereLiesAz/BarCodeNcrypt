@@ -6,7 +6,7 @@ I had this dream where, in the middle of our conversation, Dwayne "The Rock" Joh
 
 While holes in a safe make for a way in, holes can be filled. Walls can be made stronger. The consistently most insecure part of security is how you unlock it, and people are bad at making their own keys secure. BarcodeNcrypt is an attempt to increase security without demanding more effort from your brain-hole.
 
-For more detailed information, please see the full [documentation](./docs/INDEX.md).
+## Concept & Core Features
 
 BarcodeNcrypt is an Android application where physical barcodes serve as the keys for decrypting messages. The core idea is that any message can be encrypted, and to see the plaintext, the recipient must scan a predefined barcode. This introduces a tangible, physical barrier to digital security.
 
@@ -24,9 +24,7 @@ For more detailed documentation, please see the full [documentation index](./doc
 
 ### Encryption
 1.  **Assign Barcode:** From the main screen, navigate to "Contacts". Select a contact and scan a barcode to assign it a unique identifier. This action creates an entry in a secure, encrypted log that manages the rolling keys for that contact.
-2.  **Compose:** Go to "Compose". Select your recipient and the specific barcode you want to use.
-3.  **Set Security:** Write your message and set your desired security options, such as how many times the message can be opened or for how long it will be valid.
-4.  **Encrypt & Share:** Tap "Encrypt". The app generates the encrypted text, which you can then copy and paste into any other application to send.
+2.  **In-Place Encryption:** When you are in any app and want to send an encrypted message, the BarcodeNcrypt overlay will appear. Simply type your message, select your recipient and barcode, set your security options, and the app will encrypt the message in place.
 
 ### Decryption & Viewing
 1.  **Enable Service:** From "Settings", enable the "On-Screen Detection Service" and grant the necessary Accessibility permissions.
