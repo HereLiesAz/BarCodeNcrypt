@@ -26,6 +26,8 @@ fun EncryptionOverlay(
     val barcodes by viewModel.barcodes.collectAsState()
     var selectedContact by remember { mutableStateOf<Contact?>(null) }
     var selectedBarcode by remember { mutableStateOf<Barcode?>(null) }
+    var ttl by remember { mutableStateOf("") }
+    var openCount by remember { mutableStateOf("") }
 
     Column {
         if (selectedContact == null) {
@@ -55,8 +57,23 @@ fun EncryptionOverlay(
                 onValueChange = { text = it },
                 label = { Text("Message") }
             )
+            TextField(
+                value = ttl,
+                onValueChange = { ttl = it },
+                label = { Text("Time-to-live (ms)") }
+            )
+            TextField(
+                value = openCount,
+                onValueChange = { openCount = it },
+                label = { Text("Open count") }
+            )
             Button(onClick = {
-                viewModel.encrypt(text, selectedBarcode!!) { encryptedText ->
+                viewModel.encrypt(
+                    text,
+                    selectedBarcode!!,
+                    ttl.toLongOrNull(),
+                    openCount.toIntOrNull()
+                ) { encryptedText ->
                     if (encryptedText != null) {
                         val arguments = Bundle()
                         arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, encryptedText)

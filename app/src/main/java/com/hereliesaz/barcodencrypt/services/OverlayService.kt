@@ -16,16 +16,13 @@ import com.hereliesaz.barcodencrypt.ui.ScannerActivity
 import com.hereliesaz.barcodencrypt.ui.composable.EncryptionOverlay
 import com.hereliesaz.barcodencrypt.ui.composable.SuggestionOverlay
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
+import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
 import com.hereliesaz.barcodencrypt.util.Constants
 
 class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
-
-import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
-
-// ...
 
     companion object {
         const val EXTRA_MESSAGE = "extra_message"
@@ -122,7 +119,6 @@ import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
             }
         }
         overlayView = null
-        focusedNode = null
     }
 
     override fun onDestroy() {
