@@ -213,6 +213,26 @@ class AuthManager(
             .apply()
     }
 
+    fun getPassword(): CharSequence {
+        val encryptedPasswordString = sharedPreferences.getString(ENCRYPTED_PASSWORD_KEY, null)
+        val ivString = sharedPreferences.getString(IV_KEY, null)
+        if (encryptedPasswordString != null && ivString != null) {
+            try {
+                val encryptedPassword = Base64.decode(encryptedPasswordString, Base64.DEFAULT)
+                val iv = Base64.decode(ivString, Base64.DEFAULT)
+                val cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/" + KeyProperties.BLOCK_MODE_GCM + "/" + KeyProperties.ENCRYPTION_PADDING_NONE)
+                val spec = GCMParameterSpec(128, iv)
+                cipher.init(Cipher.DECRYPT_MODE, getSecretKey(), spec)
+                val decryptedPassword = cipher.doFinal(encryptedPassword)
+                return String(decryptedPassword, Charset.defaultCharset())
+            } catch (e: Exception) {
+                // decryption failed
+                return ""
+            }
+        }
+        return ""
+    }
+
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "password_key"

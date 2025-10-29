@@ -13,7 +13,7 @@ import com.hereliesaz.barcodencrypt.util.MessageParser
 class MessageDetectionService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
-    private val DEBOUNCE_DELAY_MS = 250L // 250ms debounce delay
+    private val DEBOUNCE_DELAY_MS = 250L
 
     private val scanRunnable = Runnable {
         val rootNode = rootInActiveWindow ?: return@Runnable
@@ -26,50 +26,68 @@ class MessageDetectionService : AccessibilityService() {
 
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
+            AccessibilityEvent.TYPE_VIEW_SCROLLED,
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
                 val source = event.source ?: return
                 handler.postDelayed(scanRunnable, DEBOUNCE_DELAY_MS)
                 source.recycle()
             }
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                // Stop any existing overlay when the window state changes
                 stopService(Intent(this, OverlayService::class.java))
             }
         }
     }
 
     private fun findAndHighlightMessage(rootNode: AccessibilityNodeInfo) {
-        val v3Messages = MessageParser.findAllV3MessagesWithNodes(rootNode)
-        val v4Messages = MessageParser.findAllV4MessagesWithNodes(rootNode)
-        val allMessages = v3Messages + v4Messages
+        val messages = MessageParser.findAllV3MessagesWithNodes(rootNode) + MessageParser.findAllV4MessagesWithNodes(rootNode)
+        val focusedEditableNode = findFocusedEditableNode(rootNode)
 
-        Log.d("MessageDetectionService", "Found ${allMessages.size} messages.")
-        if (allMessages.isNotEmpty()) {
-            // For now, just highlight the first message found.
-            val (message, node) = allMessages.first()
+        if (messages.isNotEmpty()) {
+            val (message, node) = messages.first()
             val rect = Rect()
             node.getBoundsInScreen(rect)
-
-            // Stop any existing overlay before starting a new one
-            stopService(Intent(this, OverlayService::class.java))
-
-            // Start the OverlayService to highlight the message
-            val intent = Intent(this, OverlayService::class.java).apply {
-                putExtra(OverlayService.EXTRA_MESSAGE, message)
-                putExtra(OverlayService.EXTRA_BOUNDS, rect)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startService(intent)
+            startOverlayService(message = message, bounds = rect)
             node.recycle()
+        } else if (focusedEditableNode != null) {
+            val rect = Rect()
+            focusedEditableNode.getBoundsInScreen(rect)
+            startOverlayService(bounds = rect, showEncryptButton = true, node = focusedEditableNode)
         } else {
-            // If no messages are found, ensure the overlay is removed.
             stopService(Intent(this, OverlayService::class.java))
         }
     }
 
-    override fun onInterrupt() {
-        // Handle interruptions
+    private fun findFocusedEditableNode(rootNode: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (rootNode.isEditable && rootNode.isFocused) {
+            return rootNode
+        }
+        for (i in 0 until rootNode.childCount) {
+            val child = rootNode.getChild(i)
+            val result = findFocusedEditableNode(child)
+            if (result != null) {
+                return result
+            }
+        }
+        return null
     }
+
+import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
+
+// ...
+
+    private fun startOverlayService(message: String? = null, bounds: Rect, showEncryptButton: Boolean = false, node: AccessibilityNodeInfo? = null) {
+        stopService(Intent(this, OverlayService::class.java))
+        AccessibilityNodeHolder.node = node
+        val intent = Intent(this, OverlayService::class.java).apply {
+            putExtra(OverlayService.EXTRA_BOUNDS, bounds)
+            putExtra(OverlayService.EXTRA_SHOW_ENCRYPT_BUTTON, showEncryptButton)
+            message?.let { putExtra(OverlayService.EXTRA_MESSAGE, it) }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startService(intent)
+    }
+
+    override fun onInterrupt() {}
 
     override fun onServiceConnected() {
         super.onServiceConnected()

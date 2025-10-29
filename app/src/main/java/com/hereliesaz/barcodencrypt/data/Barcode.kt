@@ -10,9 +10,6 @@ import com.hereliesaz.barcodencrypt.crypto.KeyManager
 enum class KeyType {
     SINGLE_BARCODE,
     PASSWORD_PROTECTED_BARCODE,
-    BARCODE_SEQUENCE,
-    PASSWORD_PROTECTED_BARCODE_SEQUENCE,
-    PASSWORD
 }
 
 /**

@@ -8,18 +8,14 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-/**
- * The Scribe's archive. The Room database.
- * It no longer knows of 'Contacts', only of the sigils ('Barcodes') themselves.
- * It is a singleton, a lonely and singular vault of secrets.
- */
-@Database(entities = [Contact::class, Barcode::class, RevokedMessage::class], version = 7, exportSchema = false) // Incremented version for v3 schema
+@Database(entities = [Contact::class, Barcode::class, OpenedMessage::class, EncryptedScriptLog::class], version = 10, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun contactDao(): ContactDao
     abstract fun barcodeDao(): BarcodeDao
-    abstract fun revokedMessageDao(): RevokedMessageDao
+    abstract fun openedMessageDao(): OpenedMessageDao
+    abstract fun encryptedScriptLogDao(): EncryptedScriptLogDao
 
     companion object {
         @Volatile
@@ -58,6 +54,36 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `encrypted_script_log` (`barcodeIdentifier` TEXT NOT NULL, `masterKey` BLOB NOT NULL, `currentChainKey` BLOB NOT NULL, `messageNumber` INTEGER NOT NULL, PRIMARY KEY(`barcodeIdentifier`))")
+            }
+        }
+
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // This migration is non-destructive for the contacts table.
+                // Data loss for the barcodes table is unavoidable due to encryption changes.
+
+                db.execSQL("CREATE TABLE `contacts_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `lookupKey` TEXT NOT NULL, `name` TEXT NOT NULL)")
+                db.execSQL("INSERT INTO `contacts_new` (`id`, `lookupKey`, `name`) SELECT `id`, `lookupKey`, `name` FROM `contacts`")
+                db.execSQL("DROP TABLE `contacts`")
+                db.execSQL("ALTER TABLE `contacts_new` RENAME TO `contacts`")
+                db.execSQL("CREATE UNIQUE INDEX `index_contacts_lookupKey` ON `contacts` (`lookupKey`)")
+
+                db.execSQL("DROP TABLE `barcodes`")
+                db.execSQL("CREATE TABLE `barcodes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `contactLookupKey` TEXT NOT NULL, `name` TEXT NOT NULL, `encryptedValue` BLOB NOT NULL, `iv` BLOB NOT NULL, `counter` INTEGER NOT NULL, `keyType` TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX `index_barcodes_contactLookupKey` ON `barcodes` (`contactLookupKey`)")
+            }
+        }
+
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `revoked_messages` RENAME TO `opened_messages`")
+                db.execSQL("ALTER TABLE `opened_messages` ADD COLUMN `openCount` INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         fun getDatabase(context: Context, passphrase: CharSequence): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val factory = net.sqlcipher.database.SupportFactory(passphrase.toString().toByteArray())
@@ -67,7 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "barcodencrypt_database"
                 )
                 .openHelperFactory(factory)
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .build()
                 INSTANCE = instance
                 instance
