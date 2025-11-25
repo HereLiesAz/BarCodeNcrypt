@@ -20,3 +20,5 @@ local.properties
 /.kotlin/sessions/kotlin-compiler-7853381810772336704.salive
 /.kotlin/sessions/kotlin-compiler-6660111042159838741.salive
 /app/google-services.json
+
+.ideaz/
