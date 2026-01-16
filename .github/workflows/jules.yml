@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Invoke Jules
         uses: google-labs-code/jules-invoke@v1
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
           prompt: |
             You are an AI coding agent named Jules. You have been assigned to handle the following issue:
