@@ -12,6 +12,7 @@ class ContactRepository(private val contactDao: ContactDao) {
 
     /**
      * A direct, live feed of all contacts, complete with their sigils, from the database.
+     * Exposed as LiveData for UI observation.
      */
     val allContacts: LiveData<List<ContactWithBarcodes>> = contactDao.getContactsWithBarcodes()
 
@@ -24,11 +25,18 @@ class ContactRepository(private val contactDao: ContactDao) {
         return contactDao.getContactWithBarcodesByLookupKey(contactLookupKey)
     }
 
+    /**
+     * Synchronous retrieval of contact data (Suspension function).
+     */
     suspend fun getContactWithBarcodesByLookupKeySync(contactLookupKey: String): ContactWithBarcodes? {
         return contactDao.getContactWithBarcodesByLookupKeySync(contactLookupKey)
     }
 
-    fun getAllContactsWithBarcodesSync(): List<ContactWithBarcodes> { // Added this function
+    /**
+     * Synchronous retrieval of all contacts.
+     * Note: Should be called on a background thread.
+     */
+    fun getAllContactsWithBarcodesSync(): List<ContactWithBarcodes> {
         return contactDao.getAllContactsWithBarcodesSync()
     }
 
@@ -49,10 +57,16 @@ class ContactRepository(private val contactDao: ContactDao) {
         contactDao.deleteContact(contact)
     }
 
+    /**
+     * Observes contact updates via Flow.
+     */
     fun getContactByLookupKey(lookupKey: String): kotlinx.coroutines.flow.Flow<Contact?> {
         return contactDao.getContactByLookupKey(lookupKey)
     }
 
+    /**
+     * Updates an existing contact record.
+     */
     suspend fun updateContact(contact: Contact) {
         contactDao.updateContact(contact)
     }
