@@ -41,6 +41,7 @@ sqlite = "2.6.2"
 securityCrypto = "1.1.0"
 navigationCompose = "2.9.8"
 hilt = "2.59.2"
+argon2kt = "1.5.0"
 
 [libraries]
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
@@ -80,6 +81,7 @@ core = { module = "com.google.zxing:core", version.ref = "core" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 google-firebase-appcheck-debug = { module = "com.google.firebase:firebase-appcheck-debug" }
 google-firebase-appcheck-playintegrity = { module = "com.google.firebase:firebase-appcheck-playintegrity" }
+argon2kt = { module = "com.lambdapioneer.argon2kt:argon2kt", version.ref = "argon2kt" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

@@ -44,6 +44,10 @@ class ComposeViewModel @Inject constructor(
         contactBarcodeJob?.cancel()
     }
 
+    /**
+     * `options` is retained for the legacy UI (single-use / TTL toggles) and is parsed
+     * out into [ttlMs] / [openMax] kwargs to the v5 [EncryptionManager.encrypt].
+     */
     suspend fun encryptMessage(
         plaintext: String,
         barcode: Barcode,
@@ -51,16 +55,23 @@ class ComposeViewModel @Inject constructor(
         password: String? = null,
         maxAttempts: Int = 0,
     ): String? {
-        // TODO("v5 — Plan 2"): rebuild this against RatchetEngine. The new call site
-        // will be encryptionManager.encrypt(plaintext, contactLookupKey, barcode,
-        // password, ttlMs, openMax).
-        val contact = selectedContact ?: return null
+        val contactLookupKey = selectedContact?.lookupKey ?: barcode.contactLookupKey
+        val ttlMs = options.firstOrNull { it.startsWith("ttl_hours=") }
+            ?.removePrefix("ttl_hours=")
+            ?.toDoubleOrNull()
+            ?.let { (it * 60 * 60 * 1000).toLong() }
+        val openMax = when {
+            maxAttempts > 0 -> maxAttempts
+            options.any { it == "single_use=true" } -> 1
+            else -> null
+        }
         return encryptionManager.encrypt(
             plaintext = plaintext,
+            contactLookupKey = contactLookupKey,
             barcode = barcode,
             password = password,
-            ttl = null,
-            openCount = if (maxAttempts > 0) maxAttempts else null,
+            ttlMs = ttlMs,
+            openMax = openMax,
         )
     }
 }

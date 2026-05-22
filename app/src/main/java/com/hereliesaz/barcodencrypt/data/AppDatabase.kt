@@ -8,14 +8,23 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Contact::class, Barcode::class, OpenedMessage::class, EncryptedScriptLog::class], version = 10, exportSchema = false)
+@Database(
+    entities = [
+        Contact::class,
+        Barcode::class,
+        OpenedMessage::class,
+        RatchetStateEntity::class,
+    ],
+    version = 11,
+    exportSchema = false,
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun contactDao(): ContactDao
     abstract fun barcodeDao(): BarcodeDao
     abstract fun openedMessageDao(): OpenedMessageDao
-    abstract fun encryptedScriptLogDao(): EncryptedScriptLogDao
+    abstract fun ratchetStateDao(): RatchetStateDao
 
     companion object {
         @Volatile
@@ -62,9 +71,6 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // This migration is non-destructive for the contacts table.
-                // Data loss for the barcodes table is unavoidable due to encryption changes.
-
                 db.execSQL("CREATE TABLE `contacts_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `lookupKey` TEXT NOT NULL, `name` TEXT NOT NULL)")
                 db.execSQL("INSERT INTO `contacts_new` (`id`, `lookupKey`, `name`) SELECT `id`, `lookupKey`, `name` FROM `contacts`")
                 db.execSQL("DROP TABLE `contacts`")
@@ -84,17 +90,60 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Drops the v3/v4 cryptographic state — the `encrypted_script_log` table and the
+         * `contacts` ratchet columns — and creates the `ratchet_state` table that backs
+         * the v5 Double Ratchet. Destructive for any prior crypto data; v5 begins
+         * bootstrapping fresh from the next encrypt/decrypt.
+         */
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS encrypted_script_log")
+                // Older SQLite ALTER TABLE DROP COLUMN is unreliable; copy-table dance.
+                db.execSQL("""
+                    CREATE TABLE contacts_v11 (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        lookupKey TEXT NOT NULL,
+                        name TEXT NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("INSERT INTO contacts_v11 (id, lookupKey, name) SELECT id, lookupKey, name FROM contacts")
+                db.execSQL("DROP TABLE contacts")
+                db.execSQL("ALTER TABLE contacts_v11 RENAME TO contacts")
+                db.execSQL("CREATE UNIQUE INDEX index_contacts_lookupKey ON contacts(lookupKey)")
+                db.execSQL("""
+                    CREATE TABLE ratchet_state (
+                        contactLookupKey TEXT NOT NULL PRIMARY KEY,
+                        salt BLOB NOT NULL,
+                        rk BLOB NOT NULL,
+                        cks BLOB,
+                        ckr BLOB,
+                        dhSelfPriv BLOB,
+                        dhSelfPub BLOB,
+                        dhRemotePub BLOB,
+                        ns INTEGER NOT NULL,
+                        nr INTEGER NOT NULL,
+                        pn INTEGER NOT NULL,
+                        skippedJson TEXT NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context, passphrase: CharSequence): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val factory = net.sqlcipher.database.SupportFactory(passphrase.toString().toByteArray())
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "barcodencrypt_database"
+                    "barcodencrypt_database",
                 )
-                .openHelperFactory(factory)
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
-                .build()
+                    .openHelperFactory(factory)
+                    .addMigrations(
+                        MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+                    )
+                    .build()
                 INSTANCE = instance
                 instance
             }

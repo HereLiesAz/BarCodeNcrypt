@@ -42,7 +42,7 @@ class MessageDetectionService : AccessibilityService() {
     }
 
     private fun findAndHighlightMessage(rootNode: AccessibilityNodeInfo) {
-        val messages = MessageParser.findAllV3MessagesWithNodes(rootNode) + MessageParser.findAllV4MessagesWithNodes(rootNode)
+        val messages = MessageParser.findAllV5Tokens(rootNode)
         val focusedEditableNode = findFocusedEditableNode(rootNode)
 
         if (messages.isNotEmpty()) {

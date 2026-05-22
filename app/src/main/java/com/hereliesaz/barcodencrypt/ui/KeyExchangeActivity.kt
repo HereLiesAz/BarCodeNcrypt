@@ -55,6 +55,7 @@ class KeyExchangeActivity : ComponentActivity() {
 fun KeyExchangeScreen(viewModel: KeyExchangeViewModel, onScanClicked: () -> Unit) {
     val contact by viewModel.contact.collectAsState()
     val qrCodeBitmap by viewModel.qrCodeBitmap.collectAsState()
+    val secureChannelReady by viewModel.secureChannelReady.collectAsState()
 
     Column(
         modifier = Modifier
@@ -63,7 +64,7 @@ fun KeyExchangeScreen(viewModel: KeyExchangeViewModel, onScanClicked: () -> Unit
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (contact?.dhRemotePublicKey == null) {
+        if (!secureChannelReady) {
             Text(
                 "To create a secure channel, have your contact scan this QR code. Then, scan theirs.",
                 textAlign = TextAlign.Center

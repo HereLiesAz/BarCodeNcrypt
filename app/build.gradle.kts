@@ -132,6 +132,9 @@ dependencies {
     // Security
     implementation(libs.security.crypto)
 
+    // Argon2id for the v5 ratchet bootstrap KDF (Plan 2)
+    implementation(libs.argon2kt)
+
 
     // Testing
     testImplementation(libs.junit)

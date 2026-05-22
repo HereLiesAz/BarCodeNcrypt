@@ -1,90 +1,38 @@
 package com.hereliesaz.barcodencrypt.util
 
-import android.graphics.Rect
-import android.util.Base64
 import android.view.accessibility.AccessibilityNodeInfo
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
-import com.hereliesaz.barcodencrypt.crypto.model.TinkMessage
-import java.nio.charset.StandardCharsets
+import com.hereliesaz.barcodencrypt.crypto.MessageEnvelope
 
+/**
+ * Detects v5 message envelopes inside arbitrary on-screen text.
+ *
+ * Token shape: `~BCEv5~<base64>` where the base64 is URL-safe + no-wrap + no-padding
+ * (matches [MessageEnvelope]). The regex deliberately covers both the URL-safe and the
+ * legacy non-URL-safe alphabets so we tolerate copy-paste from clients that may rewrite
+ * `+`/`/` along the way.
+ */
 object MessageParser {
 
-    private const val HEADER_PREFIX_V3 = "~BCEv3~"
-    private const val HEADER_PREFIX_V4 = "~BCEv4~"
-    private val V3_REGEX = Regex("~BCEv3~([A-Za-z0-9+/=]+)")
-    private val V4_REGEX = Regex("~BCEv4~([A-Za-z0-9+/=]+)")
+    private val V5_REGEX = Regex("${Regex.escape(MessageEnvelope.PREFIX)}[A-Za-z0-9+/=_\\-]+")
 
-    fun parseV3Message(message: String): com.hereliesaz.barcodencrypt.crypto.model.V3Message? {
-        val encodedJson = message.removePrefix(HEADER_PREFIX_V3)
-        return try {
-            val json = String(Base64.decode(encodedJson, Base64.DEFAULT), StandardCharsets.UTF_8)
-            Gson().fromJson(json, com.hereliesaz.barcodencrypt.crypto.model.V3Message::class.java)
-        } catch (e: Exception) {
-            when (e) {
-                is IllegalArgumentException, is JsonSyntaxException -> null
-                else -> throw e
-            }
-        }
-    }
-
-    fun parseV4Message(message: String): TinkMessage? {
-        val encodedJson = message.removePrefix(HEADER_PREFIX_V4)
-        return try {
-            val json = String(Base64.decode(encodedJson, Base64.DEFAULT), StandardCharsets.UTF_8)
-            Gson().fromJson(json, TinkMessage::class.java)
-        } catch (e: Exception) {
-            when (e) {
-                is IllegalArgumentException, is JsonSyntaxException -> null
-                else -> throw e
-            }
-        }
-    }
-
-    fun findAllV3MessagesWithNodes(rootNode: AccessibilityNodeInfo): List<Pair<String, AccessibilityNodeInfo>> {
+    fun findAllV5Tokens(
+        rootNode: AccessibilityNodeInfo,
+    ): List<Pair<String, AccessibilityNodeInfo>> {
         val messages = mutableListOf<Pair<String, AccessibilityNodeInfo>>()
         val nodesToSearch = ArrayDeque<AccessibilityNodeInfo>()
         nodesToSearch.add(rootNode)
 
         while (nodesToSearch.isNotEmpty()) {
             val currentNode = nodesToSearch.removeFirst()
-
             currentNode.text?.let { text ->
-                V3_REGEX.findAll(text).forEach { matchResult ->
-                    messages.add(Pair(matchResult.value, AccessibilityNodeInfo.obtain(currentNode)))
+                V5_REGEX.findAll(text).forEach { match ->
+                    @Suppress("DEPRECATION")
+                    val nodeCopy = AccessibilityNodeInfo.obtain(currentNode)
+                    messages.add(match.value to nodeCopy)
                 }
             }
-
             for (i in 0 until currentNode.childCount) {
-                val child = currentNode.getChild(i)
-                if (child != null) {
-                    nodesToSearch.add(child)
-                }
-            }
-        }
-        return messages
-    }
-
-    fun findAllV4MessagesWithNodes(rootNode: AccessibilityNodeInfo): List<Pair<String, AccessibilityNodeInfo>> {
-        val messages = mutableListOf<Pair<String, AccessibilityNodeInfo>>()
-        val nodesToSearch = ArrayDeque<AccessibilityNodeInfo>()
-        nodesToSearch.add(rootNode)
-
-        while (nodesToSearch.isNotEmpty()) {
-            val currentNode = nodesToSearch.removeFirst()
-
-            currentNode.text?.let { text ->
-                V4_REGEX.findAll(text).forEach { matchResult ->
-                    // Create a copy for the pair, as the original node will be recycled
-                    messages.add(Pair(matchResult.value, AccessibilityNodeInfo.obtain(currentNode)))
-                }
-            }
-
-            for (i in 0 until currentNode.childCount) {
-                val child = currentNode.getChild(i)
-                if (child != null) {
-                    nodesToSearch.add(child)
-                }
+                currentNode.getChild(i)?.let { nodesToSearch.add(it) }
             }
         }
         return messages
