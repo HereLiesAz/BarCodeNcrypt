@@ -1,51 +1,64 @@
-# BarcodeNcrypt
+# BarCodeNcrypt
 
-I had this dream where, in the middle of our conversation, Dwayne "The Rock" Johnson pulled out his keys and scanned the barcode on a coupon club key fob.
-"What was that?" I asked.
-"Oh," The Rock showed me his fob. "This is my password."
+An Android app where physical barcodes are decryption keys. Scan a barcode to decrypt
+messages on-screen; nothing leaves the device without a barcode the sender has agreed
+on out-of-band.
 
-While holes in a safe make for a way in, holes can be filled. Walls can be made stronger. The consistently most insecure part of security is how you unlock it, and people are bad at making their own keys secure. BarcodeNcrypt is an attempt to increase security without demanding more effort from your brain-hole.
+## What's in v1.0
 
-## Concept & Core Features
+- **v5 Double Ratchet** crypto (Argon2id bootstrap + Tink X25519 + HKDF + AES-256-GCM).
+  Wire format `~BCEv5~<base64>`; the binary header is GCM-authenticated. Out-of-order
+  delivery within a 1000-message skip window. See
+  [`docs/crypto/wire-format.md`](docs/crypto/wire-format.md).
+- **Accessibility-service-driven overlay** — `MessageDetectionService` watches active
+  windows for `~BCEv5~` tokens, hands them to an `OverlayService` that renders an
+  in-place decrypt / encrypt UI. The plaintext window is `FLAG_SECURE` so it can't be
+  screenshotted.
+- **SQLCipher**-encrypted Room database (`barcodencrypt_database`). Key material is
+  excluded from auto-backup and from device-transfer.
+- **Hilt** end-to-end: `@HiltAndroidApp` on the Application, `@AndroidEntryPoint` on
+  every Activity / Service, `@HiltViewModel` for every ViewModel.
+- **AzNavRail 9.x** chrome via `AzHostActivityLayout` + `AzNavHost`. Rail items: Home,
+  Compose, Scan. Menu: Settings. Onboarding stays outside the rail.
+- **Firebase Auth** (Google sign-in via Credential Manager, plus a local master
+  password fallback). **App Check** uses Play Integrity in release builds and the
+  debug provider in debug builds.
+- **R8 minification** with concrete keep-rules for every reflective library; the
+  release APK builds cleanly.
 
-BarcodeNcrypt is an Android application where physical barcodes serve as the keys for decrypting messages. The core idea is that any message can be encrypted, and to see the plaintext, the recipient must scan a predefined barcode. This introduces a tangible, physical barrier to digital security.
+## Build
 
-The app operates on these main principles:
+```sh
+./setup_env.sh           # installs JDK 17, Android SDK, materializes google-services.json
+./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+```
 
-1.  **Barcode-Based Decryption:** The key to unlocking a message is a physical barcode. This makes security tangible and less reliant on memorable (and often weak) passwords.
-2.  **On-Screen Message Detection:** A background service watches for encrypted message headers on the screen. When a header is found, the app highlights the message, making it interactive.
-3.  **Sender-Controlled Security:** The sender can define how long a message is visible (time-to-live) and how many times it can be decrypted. These "time bomb" parameters are embedded securely within the encrypted message itself.
-4.  **Password Augmentation:** Users can combine a barcode with a password for two-factor security. This functionality will also be used to augment existing password managers with barcode-based authentication.
-5.  **Interactive Tutorial:** A "Try It" mode provides a mock chat interface to walk users through the send/receive process, which also serves to test the app's core on-screen functionality.
+Gradle 9.5.1, AGP 9.2.1, Kotlin 2.3.21, Compose BOM 2026.05.01. CI runs the same three
+tasks on every PR (`.github/workflows/ci.yml`).
 
-For more detailed documentation, please see the full [documentation index](./docs/INDEX.md).
+For a signed release build see [`docs/release.md`](docs/release.md) (Plan 6).
 
-## How It Works Step-by-Step
+## Repo layout
 
-### Encryption
-1.  **Assign Barcode:** From the main screen, navigate to "Contacts". Select a contact and scan a barcode to assign it a unique identifier. This action creates an entry in a secure, encrypted log that manages the rolling keys for that contact.
-2.  **In-Place Encryption:** When you are in any app and want to send an encrypted message, the BarcodeNcrypt overlay will appear. Simply type your message, select your recipient and barcode, set your security options, and the app will encrypt the message in place.
+- `app/src/main/java/com/hereliesaz/barcodencrypt/`
+  - `crypto/` — `Argon2`, `MessageHeader`, `MessageEnvelope`, `RatchetState`,
+    `RatchetEngine`, `EncryptionManager` (façade), `KeyManager` (Android Keystore)
+  - `data/` — Room entities/DAOs/Repositories including `RatchetStateEntity`
+  - `di/` — `DatabaseModule` (Hilt)
+  - `services/` — `MessageDetectionService` (accessibility), `OverlayService`
+    (foreground SAW), `BarcodeAutofillService`, `ForegroundNotifications` helper
+  - `ui/` — `Navigation`, `MainScreen`, `ComposeScreen`, `ScannerScreen`,
+    `ContactDetailScreen`, `SettingsScreen`, `OnboardingScreen`, plus `composable/`
+  - `util/` — `AuthManager`, `Hashing`, `EditableTargetRegistry`, `MessageParser`
+  - `viewmodel/` — one `@HiltViewModel` per screen
+- `docs/crypto/wire-format.md` — canonical on-wire spec
+- `docs/superpowers/plans/` — the Plan 1–5 design docs that drove this work
 
-### Decryption & Viewing
-1.  **Enable Service:** From "Settings", enable the "On-Screen Detection Service" and grant the necessary Accessibility permissions.
-2.  **Detect:** When an encrypted message appears on screen, the service will detect its header and highlight the ciphertext.
-3.  **Scan & Reveal:** Tap the highlighted text. This will open the barcode scanner. Scan the correct barcode associated with the message.
-4.  **View:** If the barcode is correct, the temporary key is retrieved, the message is decrypted, and the plaintext appears in place of the ciphertext. If the key is incorrect, the highlight will show gibberish.
+## Privacy
 
-## Technical Deep Dive
-
-### Architecture
-BarcodeNcrypt is built with a modern, single-activity architecture using Jetpack Compose and is navigated with **AzNavRail**.
-
-*   **Single-Activity Architecture:** The app uses a single `MainActivity` to host all composable screens, with navigation handled by a `NavHost`.
-*   **Background Services:** The core functionality relies on two services:
-    *   `MessageDetectionService`: An `AccessibilityService` that scans on-screen text for the app's message headers.
-    *   `OverlayService`: Draws the highlight over detected text and handles the tap interaction to initiate scanning.
-*   **Dependency Injection:** Hilt is used to manage dependencies throughout the app.
-
-### Security
-The security model is designed around a rolling-key system managed by a central, encrypted script or log.
-
-*   **Encrypted Log:** This is the core of the security model. It associates a contact's barcode identifier with their rolling encryption key. When a message is sent or received, this log provides a temporary, single-use key.
-*   **Rolling Keys:** To ensure forward secrecy, a new key is used for each message, derived from a master key managed by the encrypted log.
-*   **Message Header:** A simple header identifies encrypted messages and contains metadata such as the number of texts in a batch and the security parameters (time-to-live, open count).
+BarCodeNcrypt stores barcode-derived ratchet state locally only. There is no
+server-side message store and no telemetry. The accessibility service runs only when
+the user enables it in system settings; it does not exfiltrate node content. Firebase
+Auth identifiers (uid / display name / email) are persisted by the SDK for sign-in
+state restoration. The full privacy policy is published at the URL declared in the
+Play Store listing.
