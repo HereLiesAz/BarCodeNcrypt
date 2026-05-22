@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -5,6 +7,19 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt)
 }
+
+// Release signing config reads keystore credentials from environment variables
+// (in CI) or from a git-ignored keystore.properties file (locally). See
+// docs/release.md for the keystore generation + storage process.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().also { props ->
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { props.load(it) }
+    }
+}
+
+fun signingValue(envKey: String, propsKey: String): String? =
+    System.getenv(envKey) ?: keystoreProps.getProperty(propsKey)
 
 android {
     namespace = "com.hereliesaz.barcodencrypt"
@@ -23,6 +38,23 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = signingValue("KEYSTORE_PATH", "storeFile")
+            val storePass = signingValue("KEYSTORE_PASSWORD", "storePassword")
+            val alias = signingValue("KEY_ALIAS", "keyAlias")
+            val keyPass = signingValue("KEY_PASSWORD", "keyPassword")
+            if (storePath != null && storePass != null && alias != null && keyPass != null) {
+                storeFile = file(storePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+            // If any value is missing the signing config silently stays empty; release
+            // assembly will fall through to debug signing or fail at the sign step.
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -31,6 +63,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             // Keep debug builds fast and avoid masking issues behind R8.

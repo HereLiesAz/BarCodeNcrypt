@@ -21,4 +21,9 @@ local.properties
 /.kotlin/sessions/kotlin-compiler-6660111042159838741.salive
 /app/google-services.json
 
+# Release signing — keystore stays out of git; CI supplies values via secrets.
+keystore.properties
+*.jks
+*.keystore
+
 .ideaz/
