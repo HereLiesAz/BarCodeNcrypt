@@ -25,11 +25,17 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
+        }
+        debug {
+            // Keep debug builds fast and avoid masking issues behind R8.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
     compileOptions {
