@@ -18,7 +18,9 @@ import com.hereliesaz.barcodencrypt.ui.composable.SuggestionOverlay
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
 import com.hereliesaz.barcodencrypt.util.Constants
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager

@@ -17,14 +17,13 @@ import com.hereliesaz.barcodencrypt.ui.App
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.LogConfig
 import com.hereliesaz.barcodencrypt.viewmodel.MainViewModel
-import com.hereliesaz.barcodencrypt.viewmodel.MainViewModelFactory
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val TAG = "MainActivity"
 
-    private val viewModel: MainViewModel by viewModels {
-        MainViewModelFactory(application)
-    }
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (LogConfig.LIFECYCLE_MAIN_ACTIVITY) Log.d(TAG, "onCreate")

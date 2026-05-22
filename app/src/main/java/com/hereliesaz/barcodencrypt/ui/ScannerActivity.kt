@@ -34,8 +34,10 @@ import com.hereliesaz.barcodencrypt.services.OverlayService
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.Constants
 import com.hereliesaz.barcodencrypt.viewmodel.*
+import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.atomic.AtomicBoolean
 
+@AndroidEntryPoint
 class ScannerActivity : ComponentActivity() {
 
     private val cameraViewModel: CameraViewModel by viewModels { CameraViewModelFactory(application) }

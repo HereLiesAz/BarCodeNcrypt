@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import com.hereliesaz.barcodencrypt.MainActivity
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.viewmodel.PasswordViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PasswordActivity : ComponentActivity() {
 
     private val viewModel: PasswordViewModel by viewModels()
