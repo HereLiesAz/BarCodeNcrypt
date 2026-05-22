@@ -8,7 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
+import com.hereliesaz.barcodencrypt.util.EditableTargetRegistry
 import com.hereliesaz.barcodencrypt.util.MessageParser
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,7 +21,20 @@ class MessageDetectionService : AccessibilityService() {
     private val scanRunnable = Runnable {
         val rootNode = rootInActiveWindow ?: return@Runnable
         findAndHighlightMessage(rootNode)
+        @Suppress("DEPRECATION")
         rootNode.recycle()
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        // Foreground-promote so Android 14+ doesn't kill the service when it hands off
+        // detected messages to the overlay.
+        ForegroundNotifications.start(
+            this,
+            ForegroundNotifications.ID_MESSAGE_DETECTION,
+            "Watching for encrypted messages",
+        )
+        Log.d(TAG, "Service connected.")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -33,6 +46,7 @@ class MessageDetectionService : AccessibilityService() {
             AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
                 val source = event.source ?: return
                 handler.postDelayed(scanRunnable, DEBOUNCE_DELAY_MS)
+                @Suppress("DEPRECATION")
                 source.recycle()
             }
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
@@ -49,8 +63,7 @@ class MessageDetectionService : AccessibilityService() {
             val (message, node) = messages.first()
             val rect = Rect()
             node.getBoundsInScreen(rect)
-            startOverlayService(message = message, bounds = rect)
-            node.recycle()
+            startOverlayService(message = message, bounds = rect, node = node, showEncryptButton = false)
         } else if (focusedEditableNode != null) {
             val rect = Rect()
             focusedEditableNode.getBoundsInScreen(rect)
@@ -65,7 +78,7 @@ class MessageDetectionService : AccessibilityService() {
             return rootNode
         }
         for (i in 0 until rootNode.childCount) {
-            val child = rootNode.getChild(i)
+            val child = rootNode.getChild(i) ?: continue
             val result = findFocusedEditableNode(child)
             if (result != null) {
                 return result
@@ -74,22 +87,27 @@ class MessageDetectionService : AccessibilityService() {
         return null
     }
 
-    private fun startOverlayService(message: String? = null, bounds: Rect, showEncryptButton: Boolean = false, node: AccessibilityNodeInfo? = null) {
+    private fun startOverlayService(
+        message: String? = null,
+        bounds: Rect,
+        showEncryptButton: Boolean = false,
+        node: AccessibilityNodeInfo? = null,
+    ) {
         stopService(Intent(this, OverlayService::class.java))
-        AccessibilityNodeHolder.node = node
+        val token = node?.let { EditableTargetRegistry.register(it) } ?: 0L
         val intent = Intent(this, OverlayService::class.java).apply {
             putExtra(OverlayService.EXTRA_BOUNDS, bounds)
             putExtra(OverlayService.EXTRA_SHOW_ENCRYPT_BUTTON, showEncryptButton)
+            putExtra(OverlayService.EXTRA_TARGET_TOKEN, token)
             message?.let { putExtra(OverlayService.EXTRA_MESSAGE, it) }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startService(intent)
     }
 
-    override fun onInterrupt() {}
+    override fun onInterrupt() = Unit
 
-    override fun onServiceConnected() {
-        super.onServiceConnected()
-        Log.d("MessageDetectionService", "Service connected.")
+    companion object {
+        private const val TAG = "MessageDetectionService"
     }
 }

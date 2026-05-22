@@ -2,24 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The camera, our window into the world of physical keys. -->
     <uses-feature android:name="android.hardware.camera.any" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- The Watcher's voice, a notification. Required for Android 13+ -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Permission to consult the master archives. -->
-    <uses-permission android:name="android.permission.READ_CONTACTS"/>
-    <!-- Permission for the Poltergeist to manifest. -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-    <!-- Permission for services to run in the foreground -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Permission for services to run with special use foreground service type -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
+    <uses-permission android:name="android.permission.BIND_AUTOFILL_SERVICE"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".BarcodeApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -40,7 +35,23 @@
             </intent-filter>
         </activity>
 
-        <!-- The Watcher, forever vigilant. -->
+        <activity
+            android:name=".ui.PasswordActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.ScannerActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.KeyExchangeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.PasswordScannerTrampolineActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <service
             android:name=".services.MessageDetectionService"
             android:exported="false"
@@ -53,13 +64,31 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Watch for ~BCEv5~ tokens on-screen to offer in-place decrypt." />
         </service>
 
-        <!-- The Poltergeist's heart. -->
         <service
             android:name=".services.OverlayService"
             android:exported="false"
-            android:foregroundServiceType="specialUse"/>
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Render the in-place encrypt/decrypt overlay above the active app." />
+        </service>
+
+        <service
+            android:name=".services.BarcodeAutofillService"
+            android:exported="true"
+            android:permission="android.permission.BIND_AUTOFILL_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.autofill.AutofillService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.autofill"
+                android:resource="@xml/autofill_service_config" />
+        </service>
 
     </application>
 
