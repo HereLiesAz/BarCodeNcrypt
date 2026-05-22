@@ -2,7 +2,6 @@ package com.hereliesaz.barcodencrypt.util
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
 
 class DecryptionAttemptManager(context: Context) {
 
@@ -33,6 +32,6 @@ class DecryptionAttemptManager(context: Context) {
     }
 
     private fun getKey(ciphertext: String): String {
-        return EncryptionManager.sha256(ciphertext)
+        return Hashing.sha256(ciphertext)
     }
 }
