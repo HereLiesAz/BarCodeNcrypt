@@ -1,9 +1,7 @@
 package com.hereliesaz.barcodencrypt
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -17,14 +15,13 @@ import com.hereliesaz.barcodencrypt.ui.App
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
 import com.hereliesaz.barcodencrypt.util.LogConfig
 import com.hereliesaz.barcodencrypt.viewmodel.MainViewModel
-import com.hereliesaz.barcodencrypt.viewmodel.MainViewModelFactory
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val TAG = "MainActivity"
 
-    private val viewModel: MainViewModel by viewModels {
-        MainViewModelFactory(application)
-    }
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (LogConfig.LIFECYCLE_MAIN_ACTIVITY) Log.d(TAG, "onCreate")
@@ -50,9 +47,11 @@ class MainActivity : ComponentActivity() {
         } else {
             viewModel.setNotificationPermissionStatus(true)
         }
-        viewModel.setContactsPermissionStatus(ContextCompat.checkSelfPermission(
-            this, Manifest.permission.READ_CONTACTS
-        ) == PackageManager.PERMISSION_GRANTED)
+        viewModel.setContactsPermissionStatus(
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.READ_CONTACTS
+            ) == PackageManager.PERMISSION_GRANTED
+        )
         viewModel.setOverlayPermissionStatus(Settings.canDrawOverlays(this))
     }
 

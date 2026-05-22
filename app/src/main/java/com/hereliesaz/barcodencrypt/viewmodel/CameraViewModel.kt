@@ -1,28 +1,32 @@
 package com.hereliesaz.barcodencrypt.viewmodel
 
-import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import com.google.common.util.concurrent.ListenableFuture
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import javax.inject.Inject
 
-class CameraViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class CameraViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _cameraProviderLiveData = MutableLiveData<ProcessCameraProvider>()
     val cameraProviderLiveData: LiveData<ProcessCameraProvider> = _cameraProviderLiveData
 
-    private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
+    private val cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     val previewUseCase: Preview = Preview.Builder().build()
@@ -32,11 +36,10 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         .build()
 
     init {
-        cameraProviderFuture = ProcessCameraProvider.getInstance(application)
+        cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
-            _cameraProviderLiveData.postValue(provider)
-        }, ContextCompat.getMainExecutor(application))
+            _cameraProviderLiveData.postValue(cameraProviderFuture.get())
+        }, ContextCompat.getMainExecutor(context))
     }
 
     fun bindUseCases(cameraProvider: ProcessCameraProvider, lifecycleOwner: LifecycleOwner) {
@@ -56,15 +59,5 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     override fun onCleared() {
         super.onCleared()
         cameraExecutor.shutdown()
-    }
-}
-
-class CameraViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(CameraViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return CameraViewModel(application) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

@@ -81,4 +81,24 @@ if [ -f "$HOME/.bashrc" ]; then
     fi
 fi
 
+# 4. google-services.json bootstrap
+# Production builds rely on a real google-services.json supplied via the
+# GOOGLE_SERVICES_JSON_B64 environment variable (decoded into app/). When the
+# secret is absent (e.g. fresh dev clones), fall back to the committed
+# template so the build can still complete.
+APP_DIR="$(cd "$(dirname "$0")" && pwd)/app"
+GOOGLE_SERVICES="$APP_DIR/google-services.json"
+GOOGLE_SERVICES_TEMPLATE="$APP_DIR/google-services.template.json"
+if [ ! -f "$GOOGLE_SERVICES" ]; then
+    if [ -n "${GOOGLE_SERVICES_JSON_B64:-}" ]; then
+        echo "Decoding GOOGLE_SERVICES_JSON_B64 into $GOOGLE_SERVICES"
+        printf '%s' "$GOOGLE_SERVICES_JSON_B64" | base64 -d > "$GOOGLE_SERVICES"
+    elif [ -f "$GOOGLE_SERVICES_TEMPLATE" ]; then
+        echo "Copying $GOOGLE_SERVICES_TEMPLATE to $GOOGLE_SERVICES (development fallback)"
+        cp "$GOOGLE_SERVICES_TEMPLATE" "$GOOGLE_SERVICES"
+    else
+        echo "Warning: no google-services.json and no template; Firebase-dependent builds will fail."
+    fi
+fi
+
 echo "Environment setup complete."

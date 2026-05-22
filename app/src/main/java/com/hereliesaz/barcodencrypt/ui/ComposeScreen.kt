@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ComposeScreen(
     navController: NavController,
-    viewModel: ComposeViewModel = viewModel()
+    viewModel: ComposeViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -99,7 +99,7 @@ fun ComposeScreen(
                 if (message.isNotBlank() && barcode != null) {
                     coroutineScope.launch {
                         val options = mutableListOf<String>()
-                        if (isSingleUse) options.add(com.hereliesaz.barcodencrypt.crypto.EncryptionManager.OPTION_SINGLE_USE)
+                        if (isSingleUse) options.add("single_use=true")
                         if (isTimed) {
                             options.add("ttl_hours=${ttlHours.toDoubleOrNull() ?: 1.0}")
                             if(ttlStartsOnOpen) options.add("ttl_on_open=true")
@@ -227,7 +227,7 @@ fun ComposeScreen(
                     } else {
                         coroutineScope.launch {
                             val options = mutableListOf<String>()
-                            if (isSingleUse) options.add(com.hereliesaz.barcodencrypt.crypto.EncryptionManager.OPTION_SINGLE_USE)
+                            if (isSingleUse) options.add("single_use=true")
                             if (isTimed) {
                                 options.add("ttl_hours=${ttlHours.toDoubleOrNull() ?: 1.0}")
                                 if (ttlStartsOnOpen) options.add("ttl_on_open=true")

@@ -1,6 +1,8 @@
 package com.hereliesaz.barcodencrypt.data
 
 import androidx.lifecycle.LiveData
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * A repository to mediate between the data sources (the Scribe's archive) and the rest of the app.
@@ -8,7 +10,8 @@ import androidx.lifecycle.LiveData
  *
  * @param contactDao The Data Access Object for contacts.
  */
-class ContactRepository(private val contactDao: ContactDao) {
+@Singleton
+class ContactRepository @Inject constructor(private val contactDao: ContactDao) {
 
     /**
      * A direct, live feed of all contacts, complete with their sigils, from the database.

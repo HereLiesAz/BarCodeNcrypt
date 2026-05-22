@@ -8,7 +8,9 @@ import com.hereliesaz.barcodencrypt.util.Constants
 import com.hereliesaz.barcodencrypt.util.PasswordPasteManager
 
 import androidx.activity.ComponentActivity
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PasswordScannerTrampolineActivity : ComponentActivity() {
     private val scannerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->

@@ -7,15 +7,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hereliesaz.barcodencrypt.util.AuthManager
 import com.hereliesaz.barcodencrypt.util.LogConfig
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class OnboardingViewModel(private val authManager: AuthManager) : ViewModel() {
+@HiltViewModel
+class OnboardingViewModel @Inject constructor(
+    private val authManager: AuthManager
+) : ViewModel() {
     private val TAG = "OnboardingViewModel"
 
     private val _signInRequest = MutableSharedFlow<GetCredentialRequest>()
@@ -43,13 +48,8 @@ class OnboardingViewModel(private val authManager: AuthManager) : ViewModel() {
         }
     }
 
-    fun onSignInError() {
-        _signInError.value = true
-    }
-
-    fun onNoCredentialsFound() {
-        _noCredentialsFound.value = true
-    }
+    fun onSignInError() { _signInError.value = true }
+    fun onNoCredentialsFound() { _noCredentialsFound.value = true }
 
     fun handleSignInResult(result: GetCredentialResponse) {
         if (LogConfig.AUTH_FLOW) Log.d(TAG, "handleSignInResult: Handling successful credential response.")
@@ -61,9 +61,7 @@ class OnboardingViewModel(private val authManager: AuthManager) : ViewModel() {
 
     fun onSetPasswordClicked(password: String) {
         authManager.setPassword(password)
-        viewModelScope.launch {
-            _signInResult.emit(true)
-        }
+        viewModelScope.launch { _signInResult.emit(true) }
     }
 
     override fun onCleared() {

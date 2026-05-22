@@ -1,25 +1,21 @@
 package com.hereliesaz.barcodencrypt.viewmodel
 
-import androidx.lifecycle.ViewModel
 import android.util.Log
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseUser
-import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
-import com.hereliesaz.barcodencrypt.data.AppDatabase
-import com.hereliesaz.barcodencrypt.data.Barcode
-import com.hereliesaz.barcodencrypt.data.BarcodeDao
-import com.hereliesaz.barcodencrypt.data.KeyType
 import com.hereliesaz.barcodencrypt.util.AuthManager
 import com.hereliesaz.barcodencrypt.util.LogConfig
-import kotlinx.coroutines.Dispatchers
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-class MainViewModel(private val authManager: AuthManager, application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val authManager: AuthManager
+) : ViewModel() {
     private val TAG = "MainViewModel"
 
     private val _serviceStatus = MutableStateFlow(false)
@@ -56,28 +52,15 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
         }
     }
 
-    fun setServiceStatus(isEnabled: Boolean) {
-        _serviceStatus.value = isEnabled
-    }
-
-    fun setNotificationPermissionStatus(isGranted: Boolean) {
-        _notificationPermissionStatus.value = isGranted
-    }
-
-    fun setContactsPermissionStatus(isGranted: Boolean) {
-        _contactsPermissionStatus.value = isGranted
-    }
-
-    fun setOverlayPermissionStatus(isGranted: Boolean) {
-        _overlayPermissionStatus.value = isGranted
-    }
+    fun setServiceStatus(isEnabled: Boolean) { _serviceStatus.value = isEnabled }
+    fun setNotificationPermissionStatus(isGranted: Boolean) { _notificationPermissionStatus.value = isGranted }
+    fun setContactsPermissionStatus(isGranted: Boolean) { _contactsPermissionStatus.value = isGranted }
+    fun setOverlayPermissionStatus(isGranted: Boolean) { _overlayPermissionStatus.value = isGranted }
 
     fun checkAuthMethod() {
         if (authManager.isGoogleUserSignedIn()) {
             if (LogConfig.AUTH_FLOW) Log.d(TAG, "User is signed in with Google. Bypassing password check.")
             _passwordCorrect.value = true
-        } else {
-            if (LogConfig.AUTH_FLOW) Log.d(TAG, "User is not signed in with Google. Password check is required.")
         }
     }
 
@@ -90,21 +73,9 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
     }
 
     fun generateTryItMessage(password: String) {
-        viewModelScope.launch {
-            val encrypted = EncryptionManager.encrypt(
-                plaintext = "This is a secret message!",
-                ikm = password,
-                keyName = "DemoKey",
-                counter = 0L,
-                options = emptyList(),
-                maxAttempts = 0
-            )
-            if (encrypted != null) {
-                _tryItState.value = TryItState.MessageGenerated(encrypted)
-            } else {
-                _tryItState.value = TryItState.Error("Encryption failed.")
-            }
-        }
+        // TODO("v5 — Plan 2"): rebuild the TryIt demo on top of the new
+        // RatchetEngine-backed EncryptionManager once Plan 2 lands.
+        _tryItState.value = TryItState.Error("Try-It mode is unavailable until v5 crypto ships.")
     }
 
     fun awaitDecryptionPassword(message: String) {
@@ -112,14 +83,8 @@ class MainViewModel(private val authManager: AuthManager, application: Applicati
     }
 
     fun decryptTryItMessage(message: String, password: String) {
-        viewModelScope.launch {
-            val decrypted = EncryptionManager.decrypt(message, password)
-            if (decrypted != null) {
-                _tryItState.value = TryItState.Decrypted(decrypted.plaintext)
-            } else {
-                _tryItState.value = TryItState.Error("Decryption failed. Please check your password and try again.")
-            }
-        }
+        // TODO("v5 — Plan 2"): see generateTryItMessage above.
+        _tryItState.value = TryItState.Error("Try-It mode is unavailable until v5 crypto ships.")
     }
 
     fun resetTryItMode() {

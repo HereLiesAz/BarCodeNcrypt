@@ -13,8 +13,10 @@ import androidx.annotation.RequiresApi
 import com.hereliesaz.barcodencrypt.R
 import android.app.assist.AssistStructure
 import com.hereliesaz.barcodencrypt.util.PasswordPasteManager
+import dagger.hilt.android.AndroidEntryPoint
 
 @RequiresApi(Build.VERSION_CODES.O)
+@AndroidEntryPoint
 class BarcodeAutofillService : AutofillService() {
 
     override fun onFillRequest(

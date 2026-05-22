@@ -56,7 +56,7 @@ import com.hereliesaz.barcodencrypt.data.KeyType
 import com.hereliesaz.barcodencrypt.util.ScannerManager
 import com.hereliesaz.barcodencrypt.util.SettingsManager
 import com.hereliesaz.barcodencrypt.viewmodel.ContactDetailViewModel
-import com.hereliesaz.barcodencrypt.viewmodel.ContactDetailViewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 
 sealed class KeyCreationState {
@@ -97,11 +97,11 @@ fun KeyCreationDialog(
                             KeyType.BARCODE_SEQUENCE -> {
                                 onKeyCreationStateChange(KeyCreationState.AwaitingSequenceScan(emptyList()))
                             }
-                            KeyType.PASSWORD -> {
+                            KeyType.PASSWORD_PROTECTED_BARCODE -> {
                                 coroutineScope.launch {
                                     ScannerManager.requestScan { barcodeValue ->
                                         if (!barcodeValue.isNullOrBlank()) {
-                                            viewModel.createAndInsertBarcode(barcodeValue, keyType = KeyType.PASSWORD)
+                                            viewModel.createAndInsertBarcode(barcodeValue, keyType = KeyType.PASSWORD_PROTECTED_BARCODE)
                                             onKeyCreationStateChange(KeyCreationState.Idle)
                                             Toast.makeText(context, context.getString(R.string.key_added), Toast.LENGTH_SHORT).show()
                                         }
@@ -300,7 +300,7 @@ fun KeyTypeSelectionDialog(
                     text = "Password (scanned from a QR code)",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onKeyTypeSelected(KeyType.PASSWORD) }
+                        .clickable { onKeyTypeSelected(KeyType.PASSWORD_PROTECTED_BARCODE) }
                         .padding(vertical = 12.dp)
                 )
             }
@@ -321,9 +321,7 @@ fun ContactDetailScreen(
     contactName: String?
 ) {
     val context = LocalContext.current
-    val viewModel: ContactDetailViewModel = viewModel(
-        factory = ContactDetailViewModelFactory(context.applicationContext as Application, contactLookupKey!!)
-    )
+    val viewModel: ContactDetailViewModel = hiltViewModel()
     val barcodes by viewModel.barcodes.observeAsState(initial = emptyList<Barcode>()) // Explicitly set the type here
     var associations by remember { mutableStateOf<Set<String>>(emptySet()) }
     var refreshTrigger by remember { mutableStateOf(false) }

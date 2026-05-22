@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     alias(libs.plugins.google.services)
@@ -9,12 +8,12 @@ plugins {
 
 android {
     namespace = "com.hereliesaz.barcodencrypt"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.hereliesaz.barcodencrypt"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 2
         versionName = "1.1"
 
@@ -43,14 +42,19 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-    buildToolsVersion = "36.1.0 rc1"
-    ndkVersion = "29.0.13599879 rc2"
+    buildToolsVersion = "36.0.0"
+    ndkVersion = "28.2.13676358"
+
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 dependencies {
@@ -68,6 +72,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.google.firebase.appcheck.debug)
+    implementation(libs.google.firebase.appcheck.playintegrity)
 
 
     // Lifecycle, ViewModel, LiveData

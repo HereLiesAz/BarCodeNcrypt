@@ -1,17 +1,23 @@
 package com.hereliesaz.barcodencrypt.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
-import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
+import com.hereliesaz.barcodencrypt.util.Hashing
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class PasswordViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class PasswordViewModel @Inject constructor(
+    @ApplicationContext context: Context
+) : ViewModel() {
 
     sealed class PasswordState {
         object Idle : PasswordState()
@@ -29,14 +35,12 @@ class PasswordViewModel(application: Application) : AndroidViewModel(application
     private val sharedPreferences = EncryptedSharedPreferences.create(
         "password_prefs",
         masterKeyAlias,
-        application,
+        context,
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    init {
-        checkPasswordState()
-    }
+    init { checkPasswordState() }
 
     private fun checkPasswordState() {
         viewModelScope.launch {
@@ -49,10 +53,10 @@ class PasswordViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             if (_passwordState.value == PasswordState.Set) {
                 val storedHash = sharedPreferences.getString("db_password_hash", null)
-                if (storedHash == EncryptionManager.sha256(password)) {
-                    _passwordState.value = PasswordState.Success
+                _passwordState.value = if (storedHash == Hashing.sha256(password)) {
+                    PasswordState.Success
                 } else {
-                    _passwordState.value = PasswordState.Invalid
+                    PasswordState.Invalid
                 }
             }
         }
@@ -60,8 +64,7 @@ class PasswordViewModel(application: Application) : AndroidViewModel(application
 
     fun createPassword(password: String) {
         viewModelScope.launch {
-            val passwordHash = EncryptionManager.sha256(password)
-            sharedPreferences.edit().putString("db_password_hash", passwordHash).apply()
+            sharedPreferences.edit().putString("db_password_hash", Hashing.sha256(password)).apply()
             _passwordState.value = PasswordState.Success
         }
     }

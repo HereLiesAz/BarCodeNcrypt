@@ -10,7 +10,9 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.hereliesaz.barcodencrypt.util.AccessibilityNodeHolder
 import com.hereliesaz.barcodencrypt.util.MessageParser
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MessageDetectionService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())

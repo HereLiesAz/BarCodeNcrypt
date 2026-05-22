@@ -14,9 +14,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.hereliesaz.barcodencrypt.MainActivity
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
+import com.hereliesaz.barcodencrypt.util.AuthManager
 import com.hereliesaz.barcodencrypt.viewmodel.PasswordViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class PasswordActivity : ComponentActivity() {
+
+    @Inject lateinit var authManager: AuthManager
 
     private val viewModel: PasswordViewModel by viewModels()
 
@@ -25,12 +31,10 @@ class PasswordActivity : ComponentActivity() {
         setContent {
             BarcodencryptTheme {
                 PasswordScreen(viewModel = viewModel) { password ->
-                    // This is the point of initialization for the encrypted database
-                    (application as com.hereliesaz.barcodencrypt.BarcodeApplication).database =
-                        com.hereliesaz.barcodencrypt.data.AppDatabase.getDatabase(this, password)
-
-                    val intent = Intent(this, MainActivity::class.java)
-                    startActivity(intent)
+                    // Persist the password through AuthManager. The Hilt-provided
+                    // AppDatabase uses AuthManager.getPassword() to seed SQLCipher.
+                    authManager.setPassword(password)
+                    startActivity(Intent(this, MainActivity::class.java))
                     finish()
                 }
             }
@@ -112,9 +116,7 @@ fun PasswordScreen(viewModel: PasswordViewModel, onPasswordSuccess: (String) -> 
                     Text("Unlock")
                 }
             }
-            else -> {
-                // Idle or Success, do nothing here as we are navigating away
-            }
+            else -> Unit
         }
     }
 }

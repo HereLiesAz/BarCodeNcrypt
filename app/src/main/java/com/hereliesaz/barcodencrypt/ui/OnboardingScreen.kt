@@ -14,11 +14,9 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.viewmodel.OnboardingViewModel
-import com.hereliesaz.barcodencrypt.viewmodel.OnboardingViewModelFactory
 import kotlinx.coroutines.launch
 
 @Composable
@@ -26,9 +24,7 @@ fun OnboardingScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
-    val onboardingViewModel: OnboardingViewModel = viewModel(
-        factory = OnboardingViewModelFactory(context.applicationContext as Application)
-    )
+    val onboardingViewModel: OnboardingViewModel = hiltViewModel()
 
     val credentialManager = remember { CredentialManager.create(context) }
     var showPasswordDialog by remember { mutableStateOf(false) }

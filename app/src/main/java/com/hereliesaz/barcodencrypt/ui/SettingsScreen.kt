@@ -28,8 +28,8 @@ import androidx.navigation.NavController
 import com.hereliesaz.barcodencrypt.BarcodeApplication
 import com.hereliesaz.barcodencrypt.R
 import com.hereliesaz.barcodencrypt.services.BarcodeAutofillService
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.hereliesaz.barcodencrypt.viewmodel.SettingsViewModel
-import com.hereliesaz.barcodencrypt.viewmodel.SettingsViewModelFactory
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -37,9 +37,7 @@ fun SettingsScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
-    val viewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModelFactory(context.applicationContext as Application)
-    )
+    val viewModel: SettingsViewModel = hiltViewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
     val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
     var showPasswordDialog by remember { mutableStateOf(false) }

@@ -1,9 +1,11 @@
 package com.hereliesaz.barcodencrypt.data
 
 import androidx.lifecycle.LiveData
-import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
 import com.hereliesaz.barcodencrypt.crypto.KeyManager
+import com.hereliesaz.barcodencrypt.util.Hashing
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * A repository to mediate between the data sources (the Scribe's archive) and the rest of the app.
@@ -14,7 +16,8 @@ import kotlinx.coroutines.flow.Flow
  *
  * @param barcodeDao The Data Access Object for barcodes.
  */
-class BarcodeRepository(private val barcodeDao: BarcodeDao) {
+@Singleton
+class BarcodeRepository @Inject constructor(private val barcodeDao: BarcodeDao) {
 
     /**
      * Retrieves a live feed of all barcodes for a given contact.
@@ -54,7 +57,7 @@ class BarcodeRepository(private val barcodeDao: BarcodeDao) {
      */
     suspend fun createAndInsertBarcode(contactLookupKey: String, rawValue: String, password: String? = null, keyType: KeyType = KeyType.SINGLE_BARCODE) {
         // Generate a non-sensitive name using the last 6 chars of the SHA256 hash
-        val name = "Key ending in...${EncryptionManager.sha256(rawValue).takeLast(6)}"
+        val name = "Key ending in...${Hashing.sha256(rawValue).takeLast(6)}"
 
         // Encrypt the sensitive raw value
         val (iv, encryptedValue) = KeyManager.encrypt(rawValue)
@@ -64,7 +67,7 @@ class BarcodeRepository(private val barcodeDao: BarcodeDao) {
         val finalKeyType = if (!password.isNullOrEmpty()) KeyType.PASSWORD_PROTECTED_BARCODE else keyType
 
         // Hash the password if present (never store plaintext password)
-        val passwordHash = if (password.isNullOrEmpty()) null else EncryptionManager.sha256(password)
+        val passwordHash = if (password.isNullOrEmpty()) null else Hashing.sha256(password)
 
         val barcode = Barcode(
             contactLookupKey = contactLookupKey,
@@ -87,13 +90,13 @@ class BarcodeRepository(private val barcodeDao: BarcodeDao) {
     suspend fun createAndInsertBarcodeSequence(contactLookupKey: String, sequence: List<String>, password: String? = null) {
         // Concatenate sequence for encryption
         val rawValue = sequence.joinToString("")
-        val name = "Key ending in...${EncryptionManager.sha256(rawValue).takeLast(6)}"
+        val name = "Key ending in...${Hashing.sha256(rawValue).takeLast(6)}"
 
         // Encrypt combined value
         val (iv, encryptedValue) = KeyManager.encrypt(rawValue)
 
         val keyType = if (password.isNullOrEmpty()) KeyType.BARCODE_SEQUENCE else KeyType.PASSWORD_PROTECTED_BARCODE_SEQUENCE
-        val passwordHash = if (password.isNullOrEmpty()) null else EncryptionManager.sha256(password)
+        val passwordHash = if (password.isNullOrEmpty()) null else Hashing.sha256(password)
 
         val barcode = Barcode(
             contactLookupKey = contactLookupKey,
