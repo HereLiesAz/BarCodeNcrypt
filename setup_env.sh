@@ -81,4 +81,10 @@ if [ -f "$HOME/.bashrc" ]; then
     fi
 fi
 
+# 4. Bootstrap google-services.json from template if absent
+if [ ! -f app/google-services.json ]; then
+    cp app/google-services.template.json app/google-services.json
+    echo "Bootstrapped app/google-services.json from template."
+fi
+
 echo "Environment setup complete."
