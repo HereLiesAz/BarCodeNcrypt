@@ -68,7 +68,7 @@ android {
         debug {
             // Keep debug builds fast and avoid masking issues behind R8.
             isMinifyEnabled = false
-            isShrinkResources = true
+            isShrinkResources = false
         }
     }
     compileOptions {
