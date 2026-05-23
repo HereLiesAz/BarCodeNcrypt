@@ -27,3 +27,4 @@ keystore.properties
 *.keystore
 
 .ideaz/
+/app/release/app-release.aab
