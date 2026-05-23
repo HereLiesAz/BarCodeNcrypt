@@ -22,10 +22,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.hereliesaz.barcodencrypt" />
+                  <option name="mobileSdkAppId" value="1:1073139954141:android:392d82b5dd5e1a82fbc634" />
+                  <option name="projectId" value="barcodencrypt" />
+                  <option name="projectNumber" value="1073139954141" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
