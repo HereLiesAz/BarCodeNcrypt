@@ -3,75 +3,73 @@ package com.hereliesaz.barcodencrypt.crypto
 import com.google.crypto.tink.subtle.AesGcmJce
 import com.google.crypto.tink.subtle.Hkdf
 import com.google.crypto.tink.subtle.X25519
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 /**
- * Pure-function v5 Double Ratchet implementation.
+ * Pure-function v6 ratchet implementation. No Android/IO/Argon2 dependencies — the
+ * Argon2id bootstrap key is computed by the caller ([EncryptionManager]) and handed in,
+ * so everything here is unit-testable on the JVM.
  *
- * Symmetric path (always available): the chain key advances on every encrypt/decrypt,
- * the message key is HKDF-derived from the chain key, and the AES-GCM nonce is
- * deterministically derived from the message key and message number. The whole header
- * is fed to GCM as `associatedData` so tampering with TTL, openCount, dhPublic, n, or
- * any other field fails the tag check.
+ * Symmetric path (always available): both peers derive the *same* chain from the *same*
+ * `Argon2(barcode, salt)` bootstrap key, so the sender's chain key for message `n` equals
+ * the receiver's chain key for message `n`. The sender carries its salt in every header;
+ * the receiver bootstraps the matching receiving chain from it. Because each peer uses its
+ * own salt, the two directions are independent and never collide.
  *
- * DH path (engaged via [startSession]): each fresh sending chain begins by mixing in
- * `DH(self_private, remote_public)` into the root key via [kdfRk]. A peer detecting an
- * unseen `dhPublic` in an incoming header advances its own DH ratchet first (via
- * [dhRatchetReceive]) before processing the message.
+ * The AES-GCM message key is HKDF-derived from the chain key, which advances on every
+ * encrypt and decrypt. The whole header is fed to GCM as `associatedData`, and the 96-bit
+ * GCM IV is generated randomly by the AEAD (carried at the front of the ciphertext).
  *
- * Out-of-order delivery is supported within [SKIP_WINDOW] messages per chain. Any keys
- * skipped past are retained in [RatchetState.skipped] with FIFO eviction at the
- * window cap.
- *
- * No Android/IO dependencies — everything is unit-testable on the JVM.
+ * Out-of-order delivery is supported within [SKIP_WINDOW] messages per chain; keys skipped
+ * past are retained in [RatchetState.skipped] with FIFO eviction at the window cap.
  */
 object RatchetEngine {
 
     private const val KEY_SIZE = 32
     private const val MAC_ALG = "HMACSHA256"
-    private const val INFO_ROOT = "BCEv5_Root"
-    private const val INFO_SEND_CHAIN = "BCEv5_SendChain"
-    private const val INFO_RECV_CHAIN = "BCEv5_RecvChain"
-    private const val INFO_MESSAGE_KEY = "BCEv5_MessageKey"
-    private const val INFO_NEXT_CHAIN = "BCEv5_NextChain"
-    private const val INFO_NONCE = "BCEv5_Nonce"
-    private const val INFO_RK_CHAIN = "BCEv5_RkChain"
+    private const val INFO_ROOT = "BCEv6_Root"
+    private const val INFO_CHAIN = "BCEv6_Chain"
+    private const val INFO_MESSAGE_KEY = "BCEv6_MessageKey"
+    private const val INFO_NEXT_CHAIN = "BCEv6_NextChain"
+    private const val INFO_RK_CHAIN = "BCEv6_RkChain"
     const val SKIP_WINDOW = 1000
 
-    fun bootstrap(barcode: ByteArray, password: ByteArray?, contactSalt: ByteArray): RatchetState {
-        val keyMaterial = barcode + (password ?: ByteArray(0))
-        val bootstrapKey = Argon2.derive(keyMaterial, contactSalt)
+    /**
+     * Bootstraps the sending side from a pre-derived 32-byte Argon2 key and our own salt.
+     * The receiving side is left empty until the first inbound message reveals the peer's
+     * salt (see [bootstrapReceiving]).
+     */
+    fun bootstrapSending(bootstrapKey: ByteArray, sendSalt: ByteArray): RatchetState {
         val rk = hkdf(bootstrapKey, ByteArray(0), INFO_ROOT)
-        val cks = hkdf(bootstrapKey, ByteArray(0), INFO_SEND_CHAIN)
-        val ckr = hkdf(bootstrapKey, ByteArray(0), INFO_RECV_CHAIN)
+        val cks = hkdf(bootstrapKey, ByteArray(0), INFO_CHAIN)
         return RatchetState(
-            rk = rk, cks = cks, ckr = ckr,
-            dhSelfPriv = null, dhSelfPub = null, dhRemotePub = null,
-            ns = 0, nr = 0, pn = 0, skipped = emptyMap(),
+            sendSalt = sendSalt,
+            cks = cks,
+            ns = 0,
+            recvSalt = null,
+            ckr = null,
+            nr = 0,
+            skipped = emptyMap(),
+            rk = rk,
+            dhSelfPriv = null,
+            dhSelfPub = null,
+            dhRemotePub = null,
+            pn = 0,
         )
     }
 
     /**
-     * Engages the DH ratchet against an externally-supplied remote public key (e.g.
-     * Plan 4's QR key exchange). Generates a fresh X25519 keypair, computes the
-     * shared secret, mixes it into the root key, and seeds a new sending chain.
+     * (Re)seeds the receiving chain from the peer's salt and the matching Argon2 key. Any
+     * previously stashed skipped keys (which belonged to the old receiving chain) are
+     * dropped, since they can no longer be derived from the new chain.
      */
-    fun startSession(state: RatchetState, remotePublic: ByteArray): RatchetState {
-        val priv = X25519.generatePrivateKey()
-        val pub = X25519.publicFromPrivate(priv)
-        val shared = X25519.computeSharedSecret(priv, remotePublic)
-        val (newRk, sendingChain) = kdfRk(state.rk, shared)
-        return state.copy(
-            rk = newRk,
-            cks = sendingChain,
-            ckr = null,
-            dhSelfPriv = priv,
-            dhSelfPub = pub,
-            dhRemotePub = remotePublic,
-            ns = 0, nr = 0, pn = state.ns,
-        )
+    fun bootstrapReceiving(state: RatchetState, recvBootstrapKey: ByteArray, recvSalt: ByteArray): RatchetState {
+        val ckr = hkdf(recvBootstrapKey, ByteArray(0), INFO_CHAIN)
+        return state.copy(recvSalt = recvSalt, ckr = ckr, nr = 0, skipped = emptyMap())
     }
+
+    /** True when the receiving chain is missing or seeded from a different salt. */
+    fun needsReceivingBootstrap(state: RatchetState, headerSalt: ByteArray): Boolean =
+        state.ckr == null || state.recvSalt == null || !state.recvSalt.contentEquals(headerSalt)
 
     fun encrypt(
         state: RatchetState,
@@ -83,21 +81,19 @@ object RatchetEngine {
     ): Pair<RatchetState, String> {
         val cks = requireNotNull(state.cks) { "sending chain not initialized" }
         val (nextCks, mk) = kdfCk(cks)
-        val nonce = deriveNonce(mk, state.ns)
         val header = MessageHeader(
             contactIdHash = contactIdHash,
+            salt = state.sendSalt,
             dhPublic = state.dhSelfPub ?: ByteArray(MessageHeader.DH_PUBLIC_SIZE),
             previousChainMessages = state.pn,
             messageNumber = state.ns,
             ttlMs = ttlMs,
             openCountMax = openMax,
             timestampMs = System.currentTimeMillis(),
-            nonce = nonce,
             dhRatchetStep = dhRatchetStep,
         )
         val headerBytes = header.encode()
-        val aead = AesGcmJce(mk)
-        val ciphertext = aead.encrypt(plaintext, headerBytes)
+        val ciphertext = AesGcmJce(mk).encrypt(plaintext, headerBytes)
         val payload = headerBytes + ciphertext
         val newState = state.copy(cks = nextCks, ns = state.ns + 1)
         return newState to MessageEnvelope.encode(payload)
@@ -114,8 +110,7 @@ object RatchetEngine {
             return null
         }
 
-        // If we have a DH ratchet engaged and the peer has rotated their key,
-        // advance our DH ratchet before processing the message.
+        // If the DH ratchet is engaged and the peer rotated their key, advance first.
         var workingState = state
         val peerHasNewDh = workingState.dhSelfPriv != null && workingState.dhRemotePub != null &&
             !header.dhPublic.contentEquals(workingState.dhRemotePub) &&
@@ -136,7 +131,7 @@ object RatchetEngine {
         }
 
         // Otherwise advance the receiving chain, stashing any keys we step over.
-        var ckr = requireNotNull(workingState.ckr) { "receiving chain not initialized" }
+        var ckr = workingState.ckr ?: return null
         var nr = workingState.nr
         val newSkipped = workingState.skipped.toMutableMap()
         if (header.messageNumber < nr) return null  // replay or stale
@@ -153,20 +148,39 @@ object RatchetEngine {
             }
         }
         val (nextCkr, mk) = kdfCk(ckr)
-        ckr = nextCkr
-        nr += 1
 
+        // Authenticate before committing the advanced chain so a forged ciphertext can't
+        // ratchet our state forward.
         val plain = runCatching { AesGcmJce(mk).decrypt(ciphertext, headerBytes) }.getOrNull()
             ?: return null
 
-        return workingState.copy(ckr = ckr, nr = nr, skipped = newSkipped) to plain
+        return workingState.copy(ckr = nextCkr, nr = nr + 1, skipped = newSkipped) to plain
     }
 
     /**
-     * Handles an incoming DH ratchet step from the peer: derives a new receiving chain
-     * from the peer's freshly-rotated public key, then rotates our own ephemeral keys
-     * and seeds a new sending chain.
+     * Engages the DH ratchet against an externally-supplied remote public key (Plan 4's
+     * QR key exchange). Generates a fresh X25519 keypair, mixes the shared secret into the
+     * root key, and seeds a new sending chain.
      */
+    fun startSession(state: RatchetState, remotePublic: ByteArray): RatchetState {
+        val priv = X25519.generatePrivateKey()
+        val pub = X25519.publicFromPrivate(priv)
+        val shared = X25519.computeSharedSecret(priv, remotePublic)
+        val (newRk, sendingChain) = kdfRk(state.rk, shared)
+        return state.copy(
+            rk = newRk,
+            cks = sendingChain,
+            ckr = null,
+            recvSalt = null,
+            dhSelfPriv = priv,
+            dhSelfPub = pub,
+            dhRemotePub = remotePublic,
+            ns = 0,
+            nr = 0,
+            pn = state.ns,
+        )
+    }
+
     private fun dhRatchetReceive(state: RatchetState, remotePublic: ByteArray): RatchetState {
         val privExisting = requireNotNull(state.dhSelfPriv) {
             "cannot receive DH ratchet step before session is started"
@@ -205,17 +219,4 @@ object RatchetEngine {
 
     private fun hkdf(ikm: ByteArray, salt: ByteArray, info: String): ByteArray =
         Hkdf.computeHkdf(MAC_ALG, ikm, salt, info.toByteArray(), KEY_SIZE)
-
-    private fun deriveNonce(mk: ByteArray, n: Int): ByteArray {
-        val mac = Mac.getInstance(MAC_ALG)
-        mac.init(SecretKeySpec(mk, MAC_ALG))
-        val nBytes = byteArrayOf(
-            (n ushr 24).toByte(),
-            (n ushr 16).toByte(),
-            (n ushr 8).toByte(),
-            n.toByte(),
-        )
-        val full = mac.doFinal(INFO_NONCE.toByteArray() + nBytes)
-        return full.copyOf(MessageHeader.NONCE_SIZE)
-    }
 }

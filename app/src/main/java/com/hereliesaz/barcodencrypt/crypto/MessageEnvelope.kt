@@ -1,22 +1,26 @@
 package com.hereliesaz.barcodencrypt.crypto
 
-import android.util.Base64
+import java.util.Base64
 
 /**
- * Wire-format wrapper around a binary v5 payload (header || ciphertext).
+ * Wire-format wrapper around a binary v6 payload (header || ciphertext).
  *
- * Encodes as `~BCEv5~<base64>`. The base64 is URL-safe + no-wrap so the token survives
- * chat clients that line-wrap or smart-quote pasted text.
+ * Encodes as `~BCEv6~<base64>`. The base64 uses the URL-safe alphabet with no padding so
+ * the token survives chat clients that line-wrap or smart-quote pasted text. Uses
+ * [java.util.Base64] (available since API 26 = our minSdk) rather than `android.util`, so
+ * the crypto path is exercised by JVM unit tests.
  */
 object MessageEnvelope {
-    const val PREFIX = "~BCEv5~"
-    private const val BASE64_FLAGS = Base64.NO_WRAP or Base64.URL_SAFE or Base64.NO_PADDING
+    const val PREFIX = "~BCEv6~"
+
+    private val encoder = Base64.getUrlEncoder().withoutPadding()
+    private val decoder = Base64.getUrlDecoder()
 
     fun encode(payload: ByteArray): String =
-        PREFIX + Base64.encodeToString(payload, BASE64_FLAGS)
+        PREFIX + encoder.encodeToString(payload)
 
     fun decode(token: String): ByteArray? {
         if (!token.startsWith(PREFIX)) return null
-        return runCatching { Base64.decode(token.removePrefix(PREFIX), BASE64_FLAGS) }.getOrNull()
+        return runCatching { decoder.decode(token.removePrefix(PREFIX)) }.getOrNull()
     }
 }

@@ -7,9 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.hereliesaz.barcodencrypt.crypto.EncryptionManager
 import com.hereliesaz.barcodencrypt.data.BarcodeRepository
 import com.hereliesaz.barcodencrypt.data.ContactRepository
-import com.hereliesaz.barcodencrypt.data.KeyType
-import com.hereliesaz.barcodencrypt.util.Hashing
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,56 +23,41 @@ class ScannerViewModel @Inject constructor(
     val decryptionResult: LiveData<DecryptionResult> = _decryptionResult
 
     /**
-     * Attempts to decrypt a `~BCEv5~` envelope using the most recently-seen barcode
-     * that matches [scannedValue].
+     * Attempts to decrypt a `~BCEv6~` envelope with the freshly-scanned [scannedValue].
      *
-     * Until Plan 4 threads the originating contact through the scanner flow, we infer
-     * the contact by looking up the first barcode whose stored hash matches the
-     * scan. That is correct for `SINGLE_BARCODE` keys and sufficient as a v1.0 path.
+     * We resolve every stored barcode whose decrypted value equals the scan (a barcode
+     * shared across contacts can match more than one) and try each in turn. The first
+     * candidate that decrypts wins; only the correct contact's ratchet state will, so a
+     * mismatch simply moves on. Runs off the main thread because the underlying Argon2
+     * bootstrap is CPU/memory heavy.
      */
     fun decryptMessage(scannedValue: String, encryptedMessage: String) {
-        viewModelScope.launch {
-            val needle = Hashing.sha256(scannedValue)
-            // TODO("Plan 4"): look up the right barcode via an indexed query instead
-            // of iterating. For now the keys-per-contact count is small.
-            val barcode = findBarcodeForScan(scannedValue, needle)
-            if (barcode == null) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val candidates = barcodeRepository.findBarcodesByRawValue(scannedValue)
+            if (candidates.isEmpty()) {
                 _decryptionResult.postValue(
                     DecryptionResult.Error("No key matches this barcode.")
                 )
                 return@launch
             }
-            val contactLookupKey = barcode.contactLookupKey
-            val password = if (barcode.keyType == KeyType.PASSWORD_PROTECTED_BARCODE) {
-                // TODO("Plan 4"): prompt the user; for v1.0 the overlay supplies it.
-                null
-            } else {
-                null
-            }
-            val plaintext = encryptionManager.decrypt(
-                envelope = encryptedMessage,
-                contactLookupKey = contactLookupKey,
-                barcode = barcode,
-                password = password,
-            )
-            if (plaintext != null) {
-                _decryptionResult.postValue(DecryptionResult.Success(plaintext))
-            } else {
-                _decryptionResult.postValue(
-                    DecryptionResult.Error("Decryption failed. Wrong key, expired, or already opened.")
+            for (barcode in candidates) {
+                val plaintext = encryptionManager.decrypt(
+                    envelope = encryptedMessage,
+                    contactLookupKey = barcode.contactLookupKey,
+                    barcode = barcode,
+                    // TODO("Plan 4"): prompt for the password on password-protected keys;
+                    // the overlay supplies it on the overlay flow.
+                    password = null,
                 )
+                if (plaintext != null) {
+                    _decryptionResult.postValue(DecryptionResult.Success(plaintext))
+                    return@launch
+                }
             }
+            _decryptionResult.postValue(
+                DecryptionResult.Error("Decryption failed. Wrong key, expired, or already opened.")
+            )
         }
-    }
-
-    private suspend fun findBarcodeForScan(
-        scannedValue: String,
-        needleHash: String,
-    ): com.hereliesaz.barcodencrypt.data.Barcode? {
-        // Cheap heuristic: the legacy v4 path stored sha256(value).takeLast(6) as the
-        // barcode's display name. So we look up by `getBarcodeByName("Key ending in...XXX")`.
-        val tail = needleHash.takeLast(6)
-        return barcodeRepository.getBarcodeByName("Key ending in...$tail")
     }
 
     fun resetDecryptionResult() {

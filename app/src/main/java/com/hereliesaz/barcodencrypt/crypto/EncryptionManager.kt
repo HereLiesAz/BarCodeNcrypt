@@ -8,13 +8,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * High-level v5 crypto entry point. Stateless façade over [RatchetEngine] +
- * [RatchetStateRepository].
+ * High-level v6 crypto entry point. Stateless façade over [RatchetEngine] +
+ * [RatchetStateRepository] that owns the Argon2id bootstrap.
  *
- * Bootstrap (first encrypt/decrypt for a contact) runs Argon2id over the barcode and
- * optional password to derive the root key; subsequent calls advance the symmetric
- * chain and persist the updated [RatchetState]. The DH ratchet engages when Plan 4's
- * QR key-exchange UI lands; until then both sides ride the symmetric chain.
+ * On the first send to a contact we generate a random per-contact salt, derive the
+ * Argon2 bootstrap key over `(barcode ‖ password, salt)`, and seed a sending chain. The
+ * salt rides in every outbound header. On receive we read the peer's salt from the
+ * header and seed (or re-seed) the receiving chain from the matching Argon2 key, so both
+ * sides derive identical message keys.
  */
 @Singleton
 class EncryptionManager @Inject constructor(
@@ -30,7 +31,8 @@ class EncryptionManager @Inject constructor(
         ttlMs: Long? = null,
         openMax: Int? = null,
     ): String? {
-        val (salt, state) = loadOrBootstrap(contactLookupKey, barcode, password) ?: return null
+        val barcodeValue = resolveBarcodeValue(barcode) ?: return null
+        val state = loadOrBootstrapSending(contactLookupKey, barcodeValue, password)
         val contactIdHash = contactIdHashFor(contactLookupKey)
         val (newState, envelope) = RatchetEngine.encrypt(
             state = state,
@@ -39,7 +41,7 @@ class EncryptionManager @Inject constructor(
             ttlMs = ttlMs,
             openMax = openMax,
         )
-        ratchetStateRepository.save(contactLookupKey, salt, newState)
+        ratchetStateRepository.save(contactLookupKey, newState)
         return envelope
     }
 
@@ -49,17 +51,25 @@ class EncryptionManager @Inject constructor(
         barcode: Barcode,
         password: String? = null,
     ): String? {
-        val (salt, state) = loadOrBootstrap(contactLookupKey, barcode, password) ?: return null
+        val payload = MessageEnvelope.decode(envelope) ?: return null
+        val header = runCatching { MessageHeader.decode(payload) }.getOrNull() ?: return null
+        val barcodeValue = resolveBarcodeValue(barcode) ?: return null
+
+        var state = loadOrBootstrapSending(contactLookupKey, barcodeValue, password)
+        if (RatchetEngine.needsReceivingBootstrap(state, header.salt)) {
+            val recvKey = deriveBootstrapKey(barcodeValue, password, header.salt)
+            state = RatchetEngine.bootstrapReceiving(state, recvKey, header.salt)
+        }
+
         val (newState, plaintext) = RatchetEngine.decrypt(state, envelope) ?: return null
-        ratchetStateRepository.save(contactLookupKey, salt, newState)
+        ratchetStateRepository.save(contactLookupKey, newState)
         return String(plaintext, Charsets.UTF_8)
     }
 
     /**
-     * Backwards-compatible signature retained for the existing
-     * [com.hereliesaz.barcodencrypt.viewmodel.EncryptionOverlayViewModel] callsite,
-     * which doesn't yet have a contact context. Returns null until Plan 4 threads the
-     * contact through the overlay flow.
+     * Backwards-compatible signature retained for the
+     * [com.hereliesaz.barcodencrypt.viewmodel.EncryptionOverlayViewModel] callsite, which
+     * doesn't yet have a contact context. Falls back to the barcode's own contact.
      */
     @Deprecated(
         message = "Pass a contactLookupKey. Plan 4 will thread it through the overlay.",
@@ -80,26 +90,31 @@ class EncryptionManager @Inject constructor(
         openMax = openCount,
     )
 
-    private suspend fun loadOrBootstrap(
+    private suspend fun loadOrBootstrapSending(
         contactLookupKey: String,
-        barcode: Barcode,
+        barcodeValue: String,
         password: String?,
-    ): Pair<ByteArray, RatchetState>? {
+    ): RatchetState {
         ratchetStateRepository.load(contactLookupKey)?.let { return it }
-        // First encrypt/decrypt for this contact: bootstrap a fresh state.
-        val barcodeValue = barcode.value.takeIf { it.isNotEmpty() } ?: run {
+        val sendSalt = ByteArray(MessageHeader.SALT_SIZE).also { random.nextBytes(it) }
+        val bootstrapKey = deriveBootstrapKey(barcodeValue, password, sendSalt)
+        val state = RatchetEngine.bootstrapSending(bootstrapKey, sendSalt)
+        ratchetStateRepository.save(contactLookupKey, state)
+        return state
+    }
+
+    private fun deriveBootstrapKey(barcodeValue: String, password: String?, salt: ByteArray): ByteArray {
+        val keyMaterial = barcodeValue.toByteArray(Charsets.UTF_8) +
+            (password?.toByteArray(Charsets.UTF_8) ?: ByteArray(0))
+        return Argon2.derive(keyMaterial, salt)
+    }
+
+    private fun resolveBarcodeValue(barcode: Barcode): String? {
+        val value = barcode.value.takeIf { it.isNotEmpty() } ?: run {
             barcode.decryptValue()
             barcode.value
         }
-        if (barcodeValue.isEmpty()) return null
-        val salt = ByteArray(SALT_SIZE).also { random.nextBytes(it) }
-        val state = RatchetEngine.bootstrap(
-            barcode = barcodeValue.toByteArray(Charsets.UTF_8),
-            password = password?.toByteArray(Charsets.UTF_8),
-            contactSalt = salt,
-        )
-        ratchetStateRepository.save(contactLookupKey, salt, state)
-        return salt to state
+        return value.takeIf { it.isNotEmpty() }
     }
 
     private fun contactIdHashFor(contactLookupKey: String): ByteArray {
@@ -109,9 +124,5 @@ class EncryptionManager @Inject constructor(
         return ByteArray(MessageHeader.CONTACT_ID_HASH_SIZE) { i ->
             hex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
         }
-    }
-
-    companion object {
-        private const val SALT_SIZE = 16
     }
 }

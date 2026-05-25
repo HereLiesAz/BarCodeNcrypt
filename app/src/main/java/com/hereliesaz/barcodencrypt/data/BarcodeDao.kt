@@ -80,6 +80,12 @@ interface BarcodeDao {
     suspend fun getBarcode(barcodeId: Int): Barcode?
 
     /**
+     * Retrieves every stored barcode (encrypted values; callers decrypt as needed).
+     */
+    @Query("SELECT * FROM barcodes")
+    suspend fun getAllBarcodes(): List<Barcode>
+
+    /**
      * Increments the usage counter for a barcode.
      * Used for non-ratchet, counter-based encryption schemes.
      */

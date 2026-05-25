@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OpenedMessage::class,
         RatchetStateEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -130,22 +130,79 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Repairs the `barcodes` schema for the v6 entity and rebuilds `ratchet_state` for
+         * the v6 ratchet.
+         *
+         * `MIGRATION_8_9` recreated `barcodes` without the `passwordHash` and
+         * `barcodeSequence` columns the entity still declares, so upgraders that passed
+         * through it have a table that fails Room's schema validation. We re-add the
+         * columns only when missing (fresh v9+ installs already have them). The v5
+         * `ratchet_state` is dropped wholesale — v5 ciphertext was never decryptable, and
+         * v6 bootstraps fresh on the next encrypt/decrypt.
+         */
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val barcodeColumns = mutableSetOf<String>()
+                db.query("PRAGMA table_info(`barcodes`)").use { cursor ->
+                    val nameIdx = cursor.getColumnIndex("name")
+                    while (cursor.moveToNext()) {
+                        barcodeColumns.add(cursor.getString(nameIdx))
+                    }
+                }
+                if (!barcodeColumns.contains("passwordHash")) {
+                    db.execSQL("ALTER TABLE `barcodes` ADD COLUMN `passwordHash` TEXT")
+                }
+                if (!barcodeColumns.contains("barcodeSequence")) {
+                    db.execSQL("ALTER TABLE `barcodes` ADD COLUMN `barcodeSequence` TEXT")
+                }
+
+                db.execSQL("DROP TABLE IF EXISTS `ratchet_state`")
+                db.execSQL(
+                    """
+                    CREATE TABLE `ratchet_state` (
+                        `contactLookupKey` TEXT NOT NULL PRIMARY KEY,
+                        `sendSalt` BLOB NOT NULL,
+                        `cks` BLOB,
+                        `ns` INTEGER NOT NULL,
+                        `recvSalt` BLOB,
+                        `ckr` BLOB,
+                        `nr` INTEGER NOT NULL,
+                        `skippedJson` TEXT NOT NULL,
+                        `rk` BLOB NOT NULL,
+                        `dhSelfPriv` BLOB,
+                        `dhSelfPub` BLOB,
+                        `dhRemotePub` BLOB,
+                        `pn` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context, passphrase: CharSequence): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val factory = net.sqlcipher.database.SupportFactory(passphrase.toString().toByteArray())
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "barcodencrypt_database",
-                )
-                    .openHelperFactory(factory)
-                    .addMigrations(
-                        MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+                INSTANCE ?: run {
+                    val factory = net.sqlcipher.database.SupportFactory(passphrase.toString().toByteArray())
+                    val instance = Room.databaseBuilder(
+                        context.applicationContext,
+                        AppDatabase::class.java,
+                        "barcodencrypt_database",
                     )
-                    .build()
-                INSTANCE = instance
-                instance
+                        .openHelperFactory(factory)
+                        .addMigrations(
+                            MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+                            MIGRATION_11_12,
+                        )
+                        // Last-resort safety net for installs with a schema older than the
+                        // earliest registered migration (no <3 migrations exist): wipe and
+                        // rebuild rather than crash-loop on open.
+                        .fallbackToDestructiveMigration(dropAllTables = true)
+                        .build()
+                    INSTANCE = instance
+                    instance
+                }
             }
         }
 
