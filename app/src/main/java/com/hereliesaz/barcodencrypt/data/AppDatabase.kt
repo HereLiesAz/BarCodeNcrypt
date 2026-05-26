@@ -198,7 +198,6 @@ abstract class AppDatabase : RoomDatabase() {
                         // Last-resort safety net for installs with a schema older than the
                         // earliest registered migration (no <3 migrations exist): wipe and
                         // rebuild rather than crash-loop on open.
-                        .fallbackToDestructiveMigration(dropAllTables = true)
                         .build()
                     INSTANCE = instance
                     instance
