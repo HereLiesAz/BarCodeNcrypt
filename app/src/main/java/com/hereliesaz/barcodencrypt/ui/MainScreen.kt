@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
@@ -33,23 +35,36 @@ fun MainScreen(
     var showDialog by remember { mutableStateOf(!serviceEnabled) }
 
     if (tryItState !is TryItState.Idle) {
-        TryItCard(
-            state = tryItState,
-            onAction = { action ->
-                when (action) {
-                    is TryItAction.GenerateMessage -> viewModel.generateTryItMessage(action.password)
-                    is TryItAction.DecryptMessage -> {
-                        if (action.password.isNotEmpty()) {
-                            viewModel.decryptTryItMessage(action.message, action.password)
-                        } else {
-                            viewModel.awaitDecryptionPassword(action.message)
+        // The Try-It flow takes over the whole screen; render it instead of the main
+        // content (not on top of it) so the two don't overlap.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TryItCard(
+                state = tryItState,
+                onAction = { action ->
+                    when (action) {
+                        is TryItAction.GenerateMessage -> viewModel.generateTryItMessage(action.password)
+                        is TryItAction.DecryptMessage -> {
+                            if (action.password.isNotEmpty()) {
+                                viewModel.decryptTryItMessage(action.message, action.password)
+                            } else {
+                                viewModel.awaitDecryptionPassword(action.message)
+                            }
                         }
+                        is TryItAction.Reset -> viewModel.resetTryItMode()
                     }
-                    is TryItAction.Reset -> viewModel.resetTryItMode()
                 }
-            }
-        )
-    } else if (showDialog && !serviceEnabled) {
+            )
+        }
+        return
+    }
+
+    if (showDialog && !serviceEnabled) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Enable Service") },
@@ -72,8 +87,10 @@ fun MainScreen(
 
     Column(
         modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize(),
+            .fillMaxSize()
+            .systemBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
