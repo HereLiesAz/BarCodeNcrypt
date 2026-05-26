@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hereliesaz.barcodencrypt.util.AuthManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,6 +18,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setPassword(password: String) {
-        authManager.setPassword(password)
+        viewModelScope.launch(Dispatchers.IO) { authManager.setPassword(password) }
     }
 }

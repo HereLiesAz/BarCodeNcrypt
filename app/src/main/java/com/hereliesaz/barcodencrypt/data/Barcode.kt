@@ -50,10 +50,15 @@ enum class KeyType {
  * @property keyType The [KeyType] strategy used for this barcode (e.g., whether it requires a password).
  * @property passwordHash The SHA-256 hash of the password (if [keyType] is [KeyType.PASSWORD_PROTECTED_BARCODE]). Used for verification.
  * @property barcodeSequence A list of barcode values if this represents a sequence (future feature).
+ * @property rawValueHash A Keystore-keyed HMAC-SHA256 of the plaintext raw value, kept as
+ *   an indexed, searchable handle so the scanner can locate matching keys without
+ *   decrypting every row. Keyed rather than a plain hash so it can't be precomputed from
+ *   the database file alone. Nullable only for rows created before this column existed;
+ *   backfilled on first scan.
  */
 @Entity(
     tableName = "barcodes",
-    indices = [Index(value = ["contactLookupKey"])]
+    indices = [Index(value = ["contactLookupKey"]), Index(value = ["rawValueHash"])]
 )
 data class Barcode(
     /**
@@ -107,7 +112,13 @@ data class Barcode(
     /**
      * A list of constituent barcode strings if this is a composite key.
      */
-    val barcodeSequence: List<String>? = null
+    val barcodeSequence: List<String>? = null,
+
+    /**
+     * Keystore-keyed HMAC-SHA256 of the plaintext raw value, used as an indexed search
+     * handle by the scanner. Null only for legacy rows awaiting lazy backfill.
+     */
+    val rawValueHash: String? = null
 ) {
     /**
      * The decrypted, plaintext value of the barcode.

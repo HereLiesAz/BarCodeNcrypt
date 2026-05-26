@@ -13,7 +13,8 @@ class Converters {
 
     @TypeConverter
     fun toKeyType(value: String): KeyType {
-        return KeyType.valueOf(value)
+        // Degrade to SINGLE_BARCODE rather than crashing the query on a legacy/unknown value.
+        return runCatching { KeyType.valueOf(value) }.getOrDefault(KeyType.SINGLE_BARCODE)
     }
 
     @TypeConverter

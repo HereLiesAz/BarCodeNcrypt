@@ -52,7 +52,7 @@ data class RatchetState(
             nullableContentEquals(recvSalt, other.recvSalt) &&
             nullableContentEquals(ckr, other.ckr) &&
             nr == other.nr &&
-            skipped == other.skipped &&
+            skippedMapsEqual(skipped, other.skipped) &&
             rk.contentEquals(other.rk) &&
             nullableContentEquals(dhSelfPriv, other.dhSelfPriv) &&
             nullableContentEquals(dhSelfPub, other.dhSelfPub) &&
@@ -67,7 +67,7 @@ data class RatchetState(
         r = 31 * r + (recvSalt?.contentHashCode() ?: 0)
         r = 31 * r + (ckr?.contentHashCode() ?: 0)
         r = 31 * r + nr
-        r = 31 * r + skipped.hashCode()
+        r = 31 * r + skippedMapHashCode(skipped)
         r = 31 * r + rk.contentHashCode()
         r = 31 * r + (dhSelfPriv?.contentHashCode() ?: 0)
         r = 31 * r + (dhSelfPub?.contentHashCode() ?: 0)
@@ -78,6 +78,25 @@ data class RatchetState(
 
     private fun nullableContentEquals(a: ByteArray?, b: ByteArray?): Boolean =
         if (a == null || b == null) a === b else a.contentEquals(b)
+
+    private fun skippedMapsEqual(
+        a: Map<SkippedKeyId, ByteArray>,
+        b: Map<SkippedKeyId, ByteArray>,
+    ): Boolean {
+        if (a.size != b.size) return false
+        return a.all { (key, value) ->
+            val other = b[key]
+            other != null && value.contentEquals(other)
+        }
+    }
+
+    private fun skippedMapHashCode(map: Map<SkippedKeyId, ByteArray>): Int {
+        var result = 0
+        for ((key, value) in map) {
+            result += 31 * key.hashCode() + value.contentHashCode()
+        }
+        return result
+    }
 }
 
 data class SkippedKeyId(val dhPublic: ByteArray, val n: Int) {

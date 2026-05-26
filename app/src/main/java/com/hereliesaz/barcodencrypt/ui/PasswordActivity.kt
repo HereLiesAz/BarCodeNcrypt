@@ -14,15 +14,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.hereliesaz.barcodencrypt.MainActivity
 import com.hereliesaz.barcodencrypt.ui.theme.BarcodencryptTheme
-import com.hereliesaz.barcodencrypt.util.AuthManager
 import com.hereliesaz.barcodencrypt.viewmodel.PasswordViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class PasswordActivity : ComponentActivity() {
-
-    @Inject lateinit var authManager: AuthManager
 
     private val viewModel: PasswordViewModel by viewModels()
 
@@ -30,10 +26,9 @@ class PasswordActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             BarcodencryptTheme {
-                PasswordScreen(viewModel = viewModel) { password ->
-                    // Persist the password through AuthManager. The Hilt-provided
-                    // AppDatabase uses AuthManager.getPassword() to seed SQLCipher.
-                    authManager.setPassword(password)
+                // The ViewModel persists the password (create) or verifies it (unlock)
+                // via AuthManager; nothing else to do here but proceed.
+                PasswordScreen(viewModel = viewModel) {
                     startActivity(Intent(this, MainActivity::class.java))
                     finish()
                 }
@@ -43,7 +38,7 @@ class PasswordActivity : ComponentActivity() {
 }
 
 @Composable
-fun PasswordScreen(viewModel: PasswordViewModel, onPasswordSuccess: (String) -> Unit) {
+fun PasswordScreen(viewModel: PasswordViewModel, onPasswordSuccess: () -> Unit) {
     val passwordState by viewModel.passwordState.collectAsState()
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -51,7 +46,7 @@ fun PasswordScreen(viewModel: PasswordViewModel, onPasswordSuccess: (String) -> 
 
     LaunchedEffect(passwordState) {
         if (passwordState is PasswordViewModel.PasswordState.Success) {
-            onPasswordSuccess(password)
+            onPasswordSuccess()
         }
         showError = passwordState is PasswordViewModel.PasswordState.Invalid
     }

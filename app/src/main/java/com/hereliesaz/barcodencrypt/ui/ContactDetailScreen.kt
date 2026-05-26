@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -237,7 +239,7 @@ fun AddAssociationDialog(
                 Text("No installable apps found to associate.")
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                    items(installedApps) { app ->
+                    items(installedApps, key = { it }) { app ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -326,6 +328,7 @@ fun ContactDetailScreen(
     var associations by remember { mutableStateOf<Set<String>>(emptySet()) }
     var refreshTrigger by remember { mutableStateOf(false) }
     var keyCreationState by remember { mutableStateOf<KeyCreationState>(KeyCreationState.Idle) }
+    var showKeyCreationDialog by remember { mutableStateOf(false) }
     var showAssociationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = refreshTrigger, key2 = Unit) {
@@ -345,25 +348,31 @@ fun ContactDetailScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                keyCreationState = KeyCreationState.Idle // This will now show the KeyTypeSelectionDialog
+                keyCreationState = KeyCreationState.Idle
+                showKeyCreationDialog = true
             }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.add_barcode_content_description))
             }
         }
     ) { paddingValues ->
 
-        if (keyCreationState !is KeyCreationState.Idle) {
+        if (showKeyCreationDialog) {
             KeyCreationDialog(
                 keyCreationState = keyCreationState,
-                onKeyCreationStateChange = { keyCreationState = it },
+                onKeyCreationStateChange = { newState ->
+                    keyCreationState = newState
+                    // Reaching Idle means the flow was completed or dismissed; close it.
+                    if (newState is KeyCreationState.Idle) showKeyCreationDialog = false
+                },
                 viewModel = viewModel
             )
         }
 
         if (showAssociationDialog) {
-            val pm = context.packageManager
-            val packages = pm.getInstalledApplications(0)
-            val installedApps = packages.map { it.packageName }.sorted()
+            // Computed once when the dialog opens rather than on every recomposition.
+            val installedApps = remember {
+                context.packageManager.getInstalledApplications(0).map { it.packageName }.sorted()
+            }
             AddAssociationDialog(
                 onDismiss = { showAssociationDialog = false },
                 onConfirm = { packageName ->
@@ -375,7 +384,13 @@ fun ContactDetailScreen(
             )
         }
 
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
             Text(
                 text = "Add keys for this contact by scanning barcodes. Then, associate messaging apps globally. Barcodencrypt will use this contact's keys if a global association matches and you are interacting with this contact.",
                 style = MaterialTheme.typography.bodyLarge,
@@ -388,7 +403,7 @@ fun ContactDetailScreen(
                 Text(stringResource(id = R.string.no_barcodes_assigned))
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                    items(barcodes) { barcode ->
+                    items(barcodes, key = { it.id }) { barcode ->
                         BarcodeItem(barcode = barcode)
                     }
                 }
@@ -403,7 +418,7 @@ fun ContactDetailScreen(
                 Text("No apps associated globally.") // MODIFIED text
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                    items(associations.toList()) { packageName -> // Convert Set to List for items
+                    items(associations.toList(), key = { it }) { packageName ->
                         ListItem(
                             headlineContent = { Text(packageName) },
                             trailingContent = {
@@ -424,6 +439,9 @@ fun ContactDetailScreen(
             Button(onClick = { showAssociationDialog = true }) {
                 Text("Add App Association (Global)")
             }
+
+            // Keep the last control clear of the floating action button.
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }

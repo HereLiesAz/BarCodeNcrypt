@@ -80,10 +80,20 @@ interface BarcodeDao {
     suspend fun getBarcode(barcodeId: Int): Barcode?
 
     /**
-     * Retrieves every stored barcode (encrypted values; callers decrypt as needed).
+     * Indexed lookup of barcodes whose plaintext raw value produces the keyed search token
+     * [hash] (see KeyManager.searchToken). Lets the scanner resolve a scan without
+     * decrypting the whole table; callers still decrypt the (few) matches and confirm the
+     * value to rule out collisions.
      */
-    @Query("SELECT * FROM barcodes")
-    suspend fun getAllBarcodes(): List<Barcode>
+    @Query("SELECT * FROM barcodes WHERE rawValueHash = :hash")
+    suspend fun getBarcodesByRawValueHash(hash: String): List<Barcode>
+
+    /**
+     * Legacy rows created before the `rawValueHash` column existed. Decrypted once on first
+     * scan to backfill the hash, after which they move onto the indexed fast path.
+     */
+    @Query("SELECT * FROM barcodes WHERE rawValueHash IS NULL")
+    suspend fun getBarcodesWithoutHash(): List<Barcode>
 
     /**
      * Increments the usage counter for a barcode.

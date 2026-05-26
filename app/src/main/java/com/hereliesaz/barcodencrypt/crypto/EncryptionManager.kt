@@ -96,11 +96,13 @@ class EncryptionManager @Inject constructor(
         password: String?,
     ): RatchetState {
         ratchetStateRepository.load(contactLookupKey)?.let { return it }
+        // Do NOT persist here: encrypt/decrypt only save after they succeed. Saving the
+        // freshly-bootstrapped state now would poison the DB if this attempt used the
+        // wrong barcode/password (a later correct attempt would load the bad state and
+        // short-circuit the re-bootstrap).
         val sendSalt = ByteArray(MessageHeader.SALT_SIZE).also { random.nextBytes(it) }
         val bootstrapKey = deriveBootstrapKey(barcodeValue, password, sendSalt)
-        val state = RatchetEngine.bootstrapSending(bootstrapKey, sendSalt)
-        ratchetStateRepository.save(contactLookupKey, state)
-        return state
+        return RatchetEngine.bootstrapSending(bootstrapKey, sendSalt)
     }
 
     private fun deriveBootstrapKey(barcodeValue: String, password: String?, salt: ByteArray): ByteArray {

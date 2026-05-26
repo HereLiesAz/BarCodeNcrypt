@@ -12,7 +12,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -122,7 +125,13 @@ fun ComposeScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
 
         Text(
             text = "Select a recipient, type your message, and then encrypt it.",
@@ -178,7 +187,9 @@ fun ComposeScreen(
             value = message,
             onValueChange = { message = it },
             label = { Text(stringResource(id = R.string.message)) },
-            modifier = Modifier.fillMaxWidth().weight(1f)
+            // A fixed minimum height instead of weight(1f): the column is now scrollable,
+            // where a weighted child would collapse to zero height.
+            modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp)
         )
 
         Row(
@@ -303,7 +314,9 @@ fun RecipientInfoRow(label: String, value: String, onClick: (() -> Unit)? = null
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
     }
 }

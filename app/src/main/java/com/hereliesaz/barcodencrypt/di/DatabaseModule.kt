@@ -28,7 +28,7 @@ object DatabaseModule {
     fun provideAppDatabase(
         @ApplicationContext context: Context,
         authManager: AuthManager,
-    ): AppDatabase = AppDatabase.getDatabase(context, authManager.getPassword())
+    ): AppDatabase = AppDatabase.getDatabase(context, authManager.getDatabasePassphrase())
 
     @Provides
     fun provideContactDao(appDatabase: AppDatabase): ContactDao = appDatabase.contactDao()

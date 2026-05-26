@@ -4,7 +4,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.hereliesaz.barcodencrypt.crypto.MessageEnvelope
 
 /**
- * Detects v5 message envelopes inside arbitrary on-screen text.
+ * Detects message envelopes inside arbitrary on-screen text.
  *
  * Token shape: `~BCEv6~<base64>` where the base64 is URL-safe + no-wrap + no-padding
  * (matches [MessageEnvelope]). The regex matches exactly the URL-safe alphabet the
@@ -12,9 +12,9 @@ import com.hereliesaz.barcodencrypt.crypto.MessageEnvelope
  */
 object MessageParser {
 
-    private val V5_REGEX = Regex("${Regex.escape(MessageEnvelope.PREFIX)}[A-Za-z0-9_-]+")
+    private val ENVELOPE_REGEX = Regex("${Regex.escape(MessageEnvelope.PREFIX)}[A-Za-z0-9_-]+")
 
-    fun findAllV5Tokens(
+    fun findEnvelopeTokens(
         rootNode: AccessibilityNodeInfo,
     ): List<Pair<String, AccessibilityNodeInfo>> {
         val messages = mutableListOf<Pair<String, AccessibilityNodeInfo>>()
@@ -24,7 +24,7 @@ object MessageParser {
         while (nodesToSearch.isNotEmpty()) {
             val currentNode = nodesToSearch.removeFirst()
             currentNode.text?.let { text ->
-                V5_REGEX.findAll(text).forEach { match ->
+                ENVELOPE_REGEX.findAll(text).forEach { match ->
                     @Suppress("DEPRECATION")
                     val nodeCopy = AccessibilityNodeInfo.obtain(currentNode)
                     messages.add(match.value to nodeCopy)

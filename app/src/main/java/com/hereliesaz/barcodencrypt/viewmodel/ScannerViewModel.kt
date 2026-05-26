@@ -9,6 +9,7 @@ import com.hereliesaz.barcodencrypt.data.BarcodeRepository
 import com.hereliesaz.barcodencrypt.data.ContactRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -22,6 +23,8 @@ class ScannerViewModel @Inject constructor(
     private val _decryptionResult = MutableLiveData<DecryptionResult>()
     val decryptionResult: LiveData<DecryptionResult> = _decryptionResult
 
+    private var decryptionJob: Job? = null
+
     /**
      * Attempts to decrypt a `~BCEv6~` envelope with the freshly-scanned [scannedValue].
      *
@@ -32,7 +35,10 @@ class ScannerViewModel @Inject constructor(
      * bootstrap is CPU/memory heavy.
      */
     fun decryptMessage(scannedValue: String, encryptedMessage: String) {
-        viewModelScope.launch(Dispatchers.Default) {
+        // Cancel any in-flight attempt so two decryptions can't race on the same contact's
+        // ratchet state (concurrent read-modify-write would desync the chain).
+        decryptionJob?.cancel()
+        decryptionJob = viewModelScope.launch(Dispatchers.Default) {
             val candidates = barcodeRepository.findBarcodesByRawValue(scannedValue)
             if (candidates.isEmpty()) {
                 _decryptionResult.postValue(

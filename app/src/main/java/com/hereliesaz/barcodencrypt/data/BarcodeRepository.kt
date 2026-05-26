@@ -75,7 +75,8 @@ class BarcodeRepository @Inject constructor(private val barcodeDao: BarcodeDao) 
             encryptedValue = encryptedValue,
             iv = iv,
             keyType = finalKeyType,
-            passwordHash = passwordHash
+            passwordHash = passwordHash,
+            rawValueHash = KeyManager.searchToken(rawValue)
         )
         barcodeDao.insertBarcode(barcode)
     }
@@ -105,7 +106,8 @@ class BarcodeRepository @Inject constructor(private val barcodeDao: BarcodeDao) 
             iv = iv,
             keyType = keyType,
             passwordHash = passwordHash,
-            barcodeSequence = sequence
+            barcodeSequence = sequence,
+            rawValueHash = KeyManager.searchToken(rawValue)
         )
         barcodeDao.insertBarcode(barcode)
     }
@@ -154,17 +156,35 @@ class BarcodeRepository @Inject constructor(private val barcodeDao: BarcodeDao) 
     /**
      * Finds every stored barcode whose decrypted value exactly equals [rawValue].
      *
-     * Used by the scanner to resolve which key(s) a freshly-scanned barcode unlocks.
-     * Matching on the real decrypted value (rather than a 6-char hash suffix of the
-     * display name) is collision-free; a barcode shared by multiple contacts yields
-     * multiple candidates, and the caller tries each. Rows that fail to decrypt (e.g.
-     * corrupt ciphertext) are skipped rather than aborting the search.
+     * Used by the scanner to resolve which key(s) a freshly-scanned barcode unlocks. The
+     * common path is a single indexed lookup on [Barcode.rawValueHash] (a Keystore-keyed
+     * HMAC of the value); the matched rows are decrypted and their value confirmed so a
+     * (theoretical) collision can't produce a false match. A barcode shared by multiple
+     * contacts yields multiple candidates, and the caller tries each.
+     *
+     * Legacy rows predating the column are scanned once and backfilled, after which the
+     * null-hash set is empty and every scan stays on the indexed fast path. Rows that fail
+     * to decrypt (e.g. corrupt ciphertext) are skipped rather than aborting.
      */
-    suspend fun findBarcodesByRawValue(rawValue: String): List<Barcode> =
-        barcodeDao.getAllBarcodes().filter { barcode ->
+    suspend fun findBarcodesByRawValue(rawValue: String): List<Barcode> {
+        val targetToken = KeyManager.searchToken(rawValue)
+        val matches = mutableListOf<Barcode>()
+
+        barcodeDao.getBarcodesByRawValueHash(targetToken).forEach { barcode ->
             runCatching {
                 barcode.decryptValue()
-                barcode.value == rawValue
-            }.getOrDefault(false)
+                if (barcode.value == rawValue) matches.add(barcode)
+            }
         }
+
+        barcodeDao.getBarcodesWithoutHash().forEach { barcode ->
+            runCatching {
+                barcode.decryptValue()
+                barcodeDao.updateBarcode(barcode.copy(rawValueHash = KeyManager.searchToken(barcode.value)))
+                if (barcode.value == rawValue) matches.add(barcode)
+            }
+        }
+
+        return matches
+    }
 }

@@ -21,7 +21,11 @@ object EditableTargetRegistry {
     /** Register the node and return a token to hand off via Intent extras. */
     fun register(node: AccessibilityNodeInfo): Long {
         val token = nextId.getAndIncrement()
-        store[token] = node
+        // Store an owned copy: the caller (the accessibility event) recycles its node as
+        // soon as the event returns, so keeping a reference to it would be a use-after-free
+        // for the overlay reader.
+        @Suppress("DEPRECATION")
+        store[token] = AccessibilityNodeInfo.obtain(node)
         return token
     }
 

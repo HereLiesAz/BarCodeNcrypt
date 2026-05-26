@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.hereliesaz.barcodencrypt.R
 
@@ -57,14 +58,23 @@ internal object ForegroundNotifications {
      */
     fun start(service: Service, notificationId: Int, contentText: String) {
         val notification = build(service, contentText)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            service.startForeground(
-                notificationId,
-                notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
-        } else {
-            service.startForeground(notificationId, notification)
+        // A background-initiated foreground start can throw
+        // ForegroundServiceStartNotAllowedException on Android 12+; swallow it so the
+        // service degrades to a normal (killable) service instead of crashing.
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                service.startForeground(
+                    notificationId,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+                )
+            } else {
+                service.startForeground(notificationId, notification)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "startForeground failed; running without foreground promotion", e)
         }
     }
+
+    private const val TAG = "ForegroundNotifications"
 }

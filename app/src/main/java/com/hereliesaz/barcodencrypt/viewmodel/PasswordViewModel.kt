@@ -1,22 +1,25 @@
 package com.hereliesaz.barcodencrypt.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
-import com.hereliesaz.barcodencrypt.util.Hashing
+import com.hereliesaz.barcodencrypt.util.AuthManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/**
+ * Backs the master-password lock screen. The password is a UI lock only (the SQLCipher
+ * key is independent — see [AuthManager.getDatabasePassphrase]); it is stored in the one
+ * [AuthManager] store rather than a second, divergent SharedPreferences.
+ */
 @HiltViewModel
 class PasswordViewModel @Inject constructor(
-    @ApplicationContext context: Context
+    private val authManager: AuthManager,
 ) : ViewModel() {
 
     sealed class PasswordState {
@@ -31,40 +34,23 @@ class PasswordViewModel @Inject constructor(
     private val _passwordState = MutableStateFlow<PasswordState>(PasswordState.Loading)
     val passwordState: StateFlow<PasswordState> = _passwordState.asStateFlow()
 
-    private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-    private val sharedPreferences = EncryptedSharedPreferences.create(
-        "password_prefs",
-        masterKeyAlias,
-        context,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
-
     init { checkPasswordState() }
 
     private fun checkPasswordState() {
-        viewModelScope.launch {
-            val passwordHash = sharedPreferences.getString("db_password_hash", null)
-            _passwordState.value = if (passwordHash == null) PasswordState.Unset else PasswordState.Set
-        }
+        _passwordState.value = if (authManager.hasLocalPassword()) PasswordState.Set else PasswordState.Unset
     }
 
     fun submitPassword(password: String) {
+        if (_passwordState.value != PasswordState.Set) return
         viewModelScope.launch {
-            if (_passwordState.value == PasswordState.Set) {
-                val storedHash = sharedPreferences.getString("db_password_hash", null)
-                _passwordState.value = if (storedHash == Hashing.sha256(password)) {
-                    PasswordState.Success
-                } else {
-                    PasswordState.Invalid
-                }
-            }
+            val ok = withContext(Dispatchers.IO) { authManager.checkPassword(password) }
+            _passwordState.value = if (ok) PasswordState.Success else PasswordState.Invalid
         }
     }
 
     fun createPassword(password: String) {
         viewModelScope.launch {
-            sharedPreferences.edit().putString("db_password_hash", Hashing.sha256(password)).apply()
+            withContext(Dispatchers.IO) { authManager.setPassword(password) }
             _passwordState.value = PasswordState.Success
         }
     }
