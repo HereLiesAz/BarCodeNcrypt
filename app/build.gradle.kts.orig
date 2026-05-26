@@ -73,9 +73,7 @@ android {
                     storePassword = storePass
                     keyAlias = alias
                     keyPassword = keyPass
-                } catch (e: Exception) {
-                    logger.warn("Failed to configure signing: ${e.message}")
-                }
+                } catch (e: Exception) {}
             }
             // If any value is missing the signing config silently stays empty; release
             // assembly will fall through to debug signing or fail at the sign step.
