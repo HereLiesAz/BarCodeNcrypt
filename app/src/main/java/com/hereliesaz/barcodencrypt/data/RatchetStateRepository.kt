@@ -22,32 +22,32 @@ class RatchetStateRepository @Inject constructor(
     private val skippedMapType = object : TypeToken<Map<String, String>>() {}.type
     private val base64Flags = Base64.NO_WRAP
 
-    /** Loads `(salt, state)` for [contactKey] if any; null if no state exists yet. */
-    suspend fun load(contactKey: String): Pair<ByteArray, RatchetState>? {
+    /** Loads the [RatchetState] for [contactKey] if any; null if no state exists yet. */
+    suspend fun load(contactKey: String): RatchetState? {
         val e = dao.get(contactKey) ?: return null
-        val skippedRaw: Map<String, String> = gson.fromJson(e.skippedJson, skippedMapType) ?: emptyMap()
-        val skipped = skippedRaw.entries.associate { (k, v) ->
-            val idx = k.lastIndexOf(':')
-            val dh = Base64.decode(k.substring(0, idx), base64Flags)
-            val n = k.substring(idx + 1).toInt()
-            SkippedKeyId(dh, n) to Base64.decode(v, base64Flags)
-        }
-        val state = RatchetState(
-            rk = e.rk,
+        val skippedRaw: Map<String, String> =
+            runCatching { gson.fromJson<Map<String, String>>(e.skippedJson, skippedMapType) }
+                .getOrNull() ?: emptyMap()
+        val skipped = skippedRaw.entries.mapNotNull { (k, v) ->
+            parseSkippedEntry(k, v)
+        }.toMap()
+        return RatchetState(
+            sendSalt = e.sendSalt,
             cks = e.cks,
+            ns = e.ns,
+            recvSalt = e.recvSalt,
             ckr = e.ckr,
+            nr = e.nr,
+            skipped = skipped,
+            rk = e.rk,
             dhSelfPriv = e.dhSelfPriv,
             dhSelfPub = e.dhSelfPub,
             dhRemotePub = e.dhRemotePub,
-            ns = e.ns,
-            nr = e.nr,
             pn = e.pn,
-            skipped = skipped,
         )
-        return e.salt to state
     }
 
-    suspend fun save(contactKey: String, salt: ByteArray, state: RatchetState) {
+    suspend fun save(contactKey: String, state: RatchetState) {
         val skippedRaw = state.skipped.entries.associate { (id, mk) ->
             "${Base64.encodeToString(id.dhPublic, base64Flags)}:${id.n}" to
                 Base64.encodeToString(mk, base64Flags)
@@ -55,22 +55,34 @@ class RatchetStateRepository @Inject constructor(
         dao.upsert(
             RatchetStateEntity(
                 contactLookupKey = contactKey,
-                salt = salt,
-                rk = state.rk,
+                sendSalt = state.sendSalt,
                 cks = state.cks,
+                ns = state.ns,
+                recvSalt = state.recvSalt,
                 ckr = state.ckr,
+                nr = state.nr,
+                skippedJson = gson.toJson(skippedRaw),
+                rk = state.rk,
                 dhSelfPriv = state.dhSelfPriv,
                 dhSelfPub = state.dhSelfPub,
                 dhRemotePub = state.dhRemotePub,
-                ns = state.ns,
-                nr = state.nr,
                 pn = state.pn,
-                skippedJson = gson.toJson(skippedRaw),
             )
         )
     }
 
     suspend fun delete(contactKey: String) {
         dao.delete(contactKey)
+    }
+
+    private fun parseSkippedEntry(key: String, value: String): Pair<SkippedKeyId, ByteArray>? {
+        val idx = key.lastIndexOf(':')
+        if (idx <= 0 || idx == key.length - 1) return null
+        val n = key.substring(idx + 1).toIntOrNull() ?: return null
+        return runCatching {
+            val dh = Base64.decode(key.substring(0, idx), base64Flags)
+            val mk = Base64.decode(value, base64Flags)
+            SkippedKeyId(dh, n) to mk
+        }.getOrNull()
     }
 }

@@ -6,14 +6,13 @@ import com.hereliesaz.barcodencrypt.crypto.MessageEnvelope
 /**
  * Detects v5 message envelopes inside arbitrary on-screen text.
  *
- * Token shape: `~BCEv5~<base64>` where the base64 is URL-safe + no-wrap + no-padding
- * (matches [MessageEnvelope]). The regex deliberately covers both the URL-safe and the
- * legacy non-URL-safe alphabets so we tolerate copy-paste from clients that may rewrite
- * `+`/`/` along the way.
+ * Token shape: `~BCEv6~<base64>` where the base64 is URL-safe + no-wrap + no-padding
+ * (matches [MessageEnvelope]). The regex matches exactly the URL-safe alphabet the
+ * envelope emits, so detected tokens always decode.
  */
 object MessageParser {
 
-    private val V5_REGEX = Regex("${Regex.escape(MessageEnvelope.PREFIX)}[A-Za-z0-9+/=_\\-]+")
+    private val V5_REGEX = Regex("${Regex.escape(MessageEnvelope.PREFIX)}[A-Za-z0-9_-]+")
 
     fun findAllV5Tokens(
         rootNode: AccessibilityNodeInfo,

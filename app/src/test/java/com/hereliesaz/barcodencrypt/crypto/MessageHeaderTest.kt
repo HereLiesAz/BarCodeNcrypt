@@ -2,20 +2,19 @@ package com.hereliesaz.barcodencrypt.crypto
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MessageHeaderTest {
 
     private val baseHeader = MessageHeader(
         contactIdHash = ByteArray(16) { 1 },
+        salt = ByteArray(16) { 3 },
         dhPublic = ByteArray(32) { 2 },
         previousChainMessages = 5,
         messageNumber = 7,
         ttlMs = 10_000L,
         openCountMax = 3,
         timestampMs = 1_716_300_000_000L,
-        nonce = ByteArray(12) { 9 },
         dhRatchetStep = false,
     )
 
@@ -23,14 +22,14 @@ class MessageHeaderTest {
     fun `round trip without TTL or openCount`() {
         val h = baseHeader.copy(ttlMs = null, openCountMax = null)
         val bytes = h.encode()
-        assertEquals(82, bytes.size)
+        assertEquals(86, bytes.size)
         assertEquals(h, MessageHeader.decode(bytes))
     }
 
     @Test
     fun `round trip with TTL and openCount`() {
         val bytes = baseHeader.encode()
-        assertEquals(94, bytes.size)
+        assertEquals(98, bytes.size)
         assertEquals(baseHeader, MessageHeader.decode(bytes))
     }
 
@@ -62,18 +61,27 @@ class MessageHeaderTest {
     }
 
     @Test
+    fun `decode rejects header truncated for declared flags`() {
+        // A header that claims TTL + openCount but is only the fixed length must be
+        // rejected rather than reading past the buffer.
+        val full = baseHeader.encode()
+        val truncated = full.copyOfRange(0, MessageHeader.HEADER_FIXED_SIZE)
+        assertNotNull(runCatching { MessageHeader.decode(truncated) }.exceptionOrNull())
+    }
+
+    @Test
     fun `init rejects wrong-size contactIdHash`() {
         assertNotNull(
             runCatching {
                 MessageHeader(
                     contactIdHash = ByteArray(8),
+                    salt = baseHeader.salt,
                     dhPublic = baseHeader.dhPublic,
                     previousChainMessages = 0,
                     messageNumber = 0,
                     ttlMs = null,
                     openCountMax = null,
                     timestampMs = 0L,
-                    nonce = baseHeader.nonce,
                     dhRatchetStep = false,
                 )
             }.exceptionOrNull(),

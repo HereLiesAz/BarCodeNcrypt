@@ -46,15 +46,17 @@ class KeyExchangeViewModel @Inject constructor(
     val secureChannelReady: StateFlow<Boolean> = _secureChannelReady.asStateFlow()
 
     init {
+        // The placeholder QR content is constant, so render it once rather than on every
+        // contact emission (which would churn 512x512 bitmaps).
+        _qrCodeBitmap.value = renderPlaceholderQr()
         viewModelScope.launch {
             contactRepository.getContactByLookupKey(contactLookupKey).collect { contact ->
                 _contact.value = contact
                 _secureChannelReady.value =
-                    ratchetStateRepository.load(contactLookupKey)?.second?.dhRemotePub != null
+                    ratchetStateRepository.load(contactLookupKey)?.dhRemotePub != null
                 // TODO("Plan 4"): generate an X25519 ephemeral keypair via
                 // RatchetEngine.startSession(), persist its RatchetState, and emit the
-                // public key as a QR via the snippet below.
-                _qrCodeBitmap.value = renderPlaceholderQr()
+                // public key as a QR.
             }
         }
     }
@@ -70,7 +72,7 @@ class KeyExchangeViewModel @Inject constructor(
 
     private fun renderPlaceholderQr(): Bitmap? = runCatching {
         val writer = QRCodeWriter()
-        val matrix = writer.encode("BCEv5-placeholder", BarcodeFormat.QR_CODE, 512, 512)
+        val matrix = writer.encode("BCEv6-placeholder", BarcodeFormat.QR_CODE, 512, 512)
         Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.RGB_565).also { bmp ->
             for (x in 0 until matrix.width) {
                 for (y in 0 until matrix.height) {

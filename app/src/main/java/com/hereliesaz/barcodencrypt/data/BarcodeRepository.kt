@@ -150,4 +150,21 @@ class BarcodeRepository @Inject constructor(private val barcodeDao: BarcodeDao) 
         barcode?.decryptValue()
         return barcode
     }
+
+    /**
+     * Finds every stored barcode whose decrypted value exactly equals [rawValue].
+     *
+     * Used by the scanner to resolve which key(s) a freshly-scanned barcode unlocks.
+     * Matching on the real decrypted value (rather than a 6-char hash suffix of the
+     * display name) is collision-free; a barcode shared by multiple contacts yields
+     * multiple candidates, and the caller tries each. Rows that fail to decrypt (e.g.
+     * corrupt ciphertext) are skipped rather than aborting the search.
+     */
+    suspend fun findBarcodesByRawValue(rawValue: String): List<Barcode> =
+        barcodeDao.getAllBarcodes().filter { barcode ->
+            runCatching {
+                barcode.decryptValue()
+                barcode.value == rawValue
+            }.getOrDefault(false)
+        }
 }
