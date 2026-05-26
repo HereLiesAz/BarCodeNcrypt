@@ -26,34 +26,6 @@ on out-of-band.
 - **R8 minification** with concrete keep-rules for every reflective library; the
   release APK builds cleanly.
 
-## Build
-
-```sh
-./setup_env.sh           # installs JDK 17, Android SDK, materializes google-services.json
-./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
-```
-
-Gradle 9.5.1, AGP 9.2.1, Kotlin 2.3.21, Compose BOM 2026.05.01. CI runs the same three
-tasks on every PR (`.github/workflows/ci.yml`).
-
-For a signed release build see [`docs/release.md`](docs/release.md) (Plan 6).
-
-## Repo layout
-
-- `app/src/main/java/com/hereliesaz/barcodencrypt/`
-  - `crypto/` — `Argon2`, `MessageHeader`, `MessageEnvelope`, `RatchetState`,
-    `RatchetEngine`, `EncryptionManager` (façade), `KeyManager` (Android Keystore)
-  - `data/` — Room entities/DAOs/Repositories including `RatchetStateEntity`
-  - `di/` — `DatabaseModule` (Hilt)
-  - `services/` — `MessageDetectionService` (accessibility), `OverlayService`
-    (foreground SAW), `BarcodeAutofillService`, `ForegroundNotifications` helper
-  - `ui/` — `Navigation`, `MainScreen`, `ComposeScreen`, `ScannerScreen`,
-    `ContactDetailScreen`, `SettingsScreen`, `OnboardingScreen`, plus `composable/`
-  - `util/` — `AuthManager`, `Hashing`, `EditableTargetRegistry`, `MessageParser`
-  - `viewmodel/` — one `@HiltViewModel` per screen
-- `docs/crypto/wire-format.md` — canonical on-wire spec
-- `docs/superpowers/plans/` — the Plan 1–5 design docs that drove this work
-
 ## Privacy
 
 BarCodeNcrypt stores barcode-derived ratchet state locally only. There is no
