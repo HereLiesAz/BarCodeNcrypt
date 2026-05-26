@@ -24,6 +24,7 @@ object ScannerManager {
      */
     val requests = _requests.asSharedFlow()
 
+    @Volatile
     private var resultCallback: ((String?) -> Unit)? = null
 
     /**
@@ -35,19 +36,23 @@ object ScannerManager {
      * is a [String] containing the barcode value, or null if the scan was cancelled.
      */
     suspend fun requestScan(onResult: (String?) -> Unit) {
-        resultCallback = onResult
+        synchronized(this) { resultCallback = onResult }
         _requests.emit(Unit)
     }
 
     /**
      * The Activity that launched the scanner calls this to deliver the scan result.
-     * It invokes the stored [resultCallback] and then clears it to prevent stale references
-     * and memory leaks.
+     * It reads and clears the stored [resultCallback] atomically (the request and result
+     * arrive on different threads), then invokes it.
      *
      * @param result The scanned barcode value, or null if the scan was cancelled.
      */
     fun onScanResult(result: String?) {
-        resultCallback?.invoke(result)
-        resultCallback = null // Clear the callback to prevent stale references.
+        val callback = synchronized(this) {
+            val current = resultCallback
+            resultCallback = null
+            current
+        }
+        callback?.invoke(result)
     }
 }
