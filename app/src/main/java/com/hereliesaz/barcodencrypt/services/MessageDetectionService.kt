@@ -58,7 +58,7 @@ class MessageDetectionService : AccessibilityService() {
     }
 
     private fun findAndHighlightMessage(rootNode: AccessibilityNodeInfo) {
-        val messages = MessageParser.findAllV5Tokens(rootNode)
+        val messages = MessageParser.findEnvelopeTokens(rootNode)
         if (messages.isNotEmpty()) {
             val (message, node) = messages.first()
             val rect = Rect()
