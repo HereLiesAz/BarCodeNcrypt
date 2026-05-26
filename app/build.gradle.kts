@@ -23,6 +23,10 @@ val localProperties = Properties().apply {
     }
 }
 
+fun signingValue(envKey: String, propKey: String): String? {
+    return System.getenv(envKey) ?: localProperties.getProperty(propKey)
+}
+
 var currentVersionCode = versionProps.getProperty("versionBuild", "1").toInt()
 
 // Automatically increment versionCode for release builds
@@ -63,11 +67,13 @@ android {
             val storePass = signingValue("KEYSTORE_PASSWORD", "storePassword")
             val alias = signingValue("KEY_ALIAS", "keyAlias")
             val keyPass = signingValue("KEY_PASSWORD", "keyPassword")
-            if (storePath != null && storePass != null && alias != null && keyPass != null) {
-                storeFile = file(storePath)
-                storePassword = storePass
-                keyAlias = alias
-                keyPassword = keyPass
+            if (!storePath.isNullOrBlank() && !storePass.isNullOrBlank() && !alias.isNullOrBlank() && !keyPass.isNullOrBlank()) {
+                try {
+                    storeFile = file(storePath)
+                    storePassword = storePass
+                    keyAlias = alias
+                    keyPassword = keyPass
+                } catch (e: Exception) {}
             }
             // If any value is missing the signing config silently stays empty; release
             // assembly will fall through to debug signing or fail at the sign step.
