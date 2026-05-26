@@ -80,9 +80,10 @@ interface BarcodeDao {
     suspend fun getBarcode(barcodeId: Int): Barcode?
 
     /**
-     * Indexed lookup of barcodes whose plaintext raw value hashes to [hash]. Lets the
-     * scanner resolve a scan without decrypting the whole table; callers still decrypt the
-     * (few) matches and confirm the value to rule out hash collisions.
+     * Indexed lookup of barcodes whose plaintext raw value produces the keyed search token
+     * [hash] (see KeyManager.searchToken). Lets the scanner resolve a scan without
+     * decrypting the whole table; callers still decrypt the (few) matches and confirm the
+     * value to rule out collisions.
      */
     @Query("SELECT * FROM barcodes WHERE rawValueHash = :hash")
     suspend fun getBarcodesByRawValueHash(hash: String): List<Barcode>
