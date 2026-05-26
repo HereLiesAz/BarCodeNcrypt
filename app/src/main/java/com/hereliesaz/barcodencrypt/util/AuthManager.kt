@@ -334,11 +334,50 @@ class AuthManager(
         return ""
     }
 
+    /**
+     * Returns the SQLCipher passphrase: a stable 32-byte random key generated once and
+     * stored encrypted under the Keystore-backed [SecretKey]. It is **independent of the
+     * user's login password**, so changing or setting a password never re-keys (and thus
+     * never locks out) the database. The login password is a UI lock only.
+     */
+    @Synchronized
+    fun getDatabasePassphrase(): ByteArray {
+        val storedKey = sharedPreferences.getString(DB_KEY_KEY, null)
+        val storedIv = sharedPreferences.getString(DB_KEY_IV, null)
+        if (storedKey != null && storedIv != null) {
+            runCatching {
+                val cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION)
+                cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    getSecretKey(),
+                    GCMParameterSpec(128, Base64.decode(storedIv, Base64.DEFAULT)),
+                )
+                return cipher.doFinal(Base64.decode(storedKey, Base64.DEFAULT))
+            }
+            // Decrypt failed (e.g. the Keystore key was invalidated). Fall through and mint
+            // a fresh key. This is a last resort: an existing DB keyed with the old value
+            // will no longer open, but the alternative is a permanent crash loop.
+            Log.w(TAG, "DB passphrase decrypt failed; generating a new one.")
+        }
+        val fresh = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION)
+        cipher.init(Cipher.ENCRYPT_MODE, getSecretKey())
+        val encrypted = cipher.doFinal(fresh)
+        sharedPreferences.edit()
+            .putString(DB_KEY_KEY, Base64.encodeToString(encrypted, Base64.DEFAULT))
+            .putString(DB_KEY_IV, Base64.encodeToString(cipher.iv, Base64.DEFAULT))
+            .apply()
+        return fresh
+    }
+
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "password_key"
         private const val ENCRYPTED_PASSWORD_KEY = "encrypted_password"
         private const val IV_KEY = "iv"
+        private const val DB_KEY_KEY = "db_passphrase"
+        private const val DB_KEY_IV = "db_passphrase_iv"
+        private const val AES_GCM_TRANSFORMATION = "AES/GCM/NoPadding"
         const val IS_GOOGLE_SIGNED_IN_KEY = "is_google_signed_in"
     }
 }

@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.hereliesaz.barcodencrypt.util.AuthManager
 import com.hereliesaz.barcodencrypt.util.LogConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -60,8 +62,10 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun onSetPasswordClicked(password: String) {
-        authManager.setPassword(password)
-        viewModelScope.launch { _signInResult.emit(true) }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { authManager.setPassword(password) }
+            _signInResult.emit(true)
+        }
     }
 
     override fun onCleared() {

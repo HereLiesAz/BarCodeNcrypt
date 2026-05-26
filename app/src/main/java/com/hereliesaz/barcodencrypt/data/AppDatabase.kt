@@ -180,10 +180,10 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        fun getDatabase(context: Context, passphrase: CharSequence): AppDatabase {
+        fun getDatabase(context: Context, passphrase: ByteArray): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: run {
-                    val factory = net.sqlcipher.database.SupportFactory(passphrase.toString().toByteArray())
+                    val factory = net.sqlcipher.database.SupportFactory(passphrase)
                     val instance = Room.databaseBuilder(
                         context.applicationContext,
                         AppDatabase::class.java,
