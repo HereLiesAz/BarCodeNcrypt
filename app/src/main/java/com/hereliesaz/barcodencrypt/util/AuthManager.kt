@@ -354,10 +354,10 @@ class AuthManager(
                 )
                 return cipher.doFinal(Base64.decode(storedKey, Base64.DEFAULT))
             }
-            // Decrypt failed (e.g. the Keystore key was invalidated). Fall through and mint
-            // a fresh key. This is a last resort: an existing DB keyed with the old value
-            // will no longer open, but the alternative is a permanent crash loop.
-            Log.w(TAG, "DB passphrase decrypt failed; generating a new one.")
+            // Never replace an existing database key after a Keystore failure:
+            // doing so makes the encrypted database permanently inaccessible.
+            Log.e(TAG, "DB passphrase decryption failed; preserving encrypted key.")
+            throw IllegalStateException("Unable to unlock existing encrypted database")
         }
         val fresh = ByteArray(32).also { SecureRandom().nextBytes(it) }
         val cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION)
